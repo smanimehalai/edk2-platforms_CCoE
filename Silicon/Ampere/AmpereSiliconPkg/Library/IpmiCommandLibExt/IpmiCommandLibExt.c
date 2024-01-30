@@ -9,7 +9,6 @@
 #include <Uefi.h>
 
 #include <IndustryStandard/Ipmi.h>
-#include <IndustryStandard/IpmiNetFnAppExt.h>
 #include <Library/BaseMemoryLib.h>
 #include <Library/DebugLib.h>
 #include <Library/IpmiCommandLibExt.h>
@@ -48,7 +47,7 @@ IpmiGetBmcLanInfo (
   // Get Channel Information
   //
   ZeroMem (&GetChannelInfoRequest, sizeof (GetChannelInfoRequest));
-  GetChannelInfoRequest.Bits.ChannelNumber = BmcChannel;
+  GetChannelInfoRequest.ChannelNumber.Bits.ChannelNo = BmcChannel;
 
   ResponseSize = sizeof (GetChannelInfoResponse);
   Status = IpmiSubmitCommand (
@@ -69,7 +68,7 @@ IpmiGetBmcLanInfo (
   //
   if (EFI_ERROR (Status)
       || GetChannelInfoResponse.CompletionCode != IPMI_COMP_CODE_NORMAL
-      || GetChannelInfoResponse.MediumType.Bits.ChannelMediumType != BMC_CHANNEL_MEDIUM_TYPE_ETHERNET)
+      || GetChannelInfoResponse.MediumType.Bits.ChannelMediumType != IPMI_CHANNEL_MEDIA_TYPE_802_3_LAN)
   {
     return EFI_NOT_FOUND;
   }
@@ -170,7 +169,7 @@ Exit:
 **/
 EFI_STATUS
 EFIAPI
-IpmiSetSystemBootOptions (
+IpmiSetSystemBootOptionsExt (
   IN  IPMI_SET_BOOT_OPTIONS_REQUEST  *SetBootOptionsRequest,
   IN  UINT32                         SetBootOptionsRequestSize,
   OUT UINT8                          *CompletionCode
@@ -232,7 +231,7 @@ IpmiSetSystemBootOptions (
 **/
 EFI_STATUS
 EFIAPI
-IpmiGetSystemBootOptions (
+IpmiGetSystemBootOptionsExt (
   IN     UINT8                          ParameterSelector,
   OUT    IPMI_GET_BOOT_OPTIONS_RESPONSE *GetBootOptionsResponse,
   IN OUT UINT32                         *GetBootOptionsResponseSize
@@ -308,7 +307,7 @@ IpmiSetBootInfoAck (
   ParameterData->WriteMask = BIT0;
   ParameterData->BootInitiatorAcknowledgeData = 0x0;
 
-  Status = IpmiSetSystemBootOptions (
+  Status = IpmiSetSystemBootOptionsExt (
              SetBootOptionsRequest,
              SetBootOptionsRequestSize,
              &CompletionCode
@@ -350,7 +349,7 @@ IpmiGetBootInfoAck (
 
   ParameterData = (IPMI_BOOT_OPTIONS_RESPONSE_PARAMETER_4 *)&GetBootOptionsResponse->ParameterData;
 
-  Status = IpmiGetSystemBootOptions (
+  Status = IpmiGetSystemBootOptionsExt (
              IPMI_BOOT_OPTIONS_PARAMETER_BOOT_INFO_ACK,
              GetBootOptionsResponse,
              &GetBootOptionsResponseSize
@@ -389,7 +388,7 @@ IpmiClearBootFlags (
 
   SetBootOptionsRequest->ParameterValid.Bits.ParameterSelector = IPMI_BOOT_OPTIONS_PARAMETER_BOOT_FLAGS;
 
-  Status = IpmiSetSystemBootOptions (
+  Status = IpmiSetSystemBootOptionsExt (
              SetBootOptionsRequest,
              SetBootOptionsRequestSize,
              &CompletionCode
@@ -431,7 +430,7 @@ IpmiGetBootFlags (
 
   ParameterData = (IPMI_BOOT_OPTIONS_RESPONSE_PARAMETER_5 *)&GetBootOptionsResponse->ParameterData;
 
-  Status = IpmiGetSystemBootOptions (
+  Status = IpmiGetSystemBootOptionsExt (
              IPMI_BOOT_OPTIONS_PARAMETER_BOOT_FLAGS,
              GetBootOptionsResponse,
              &GetBootOptionsResponseSize
@@ -481,7 +480,7 @@ IpmiClearCmosBootFlags (
 
   ParameterData = (IPMI_BOOT_OPTIONS_RESPONSE_PARAMETER_5 *)&GetBootOptionsResponse->ParameterData;
 
-  Status = IpmiGetSystemBootOptions (
+  Status = IpmiGetSystemBootOptionsExt (
              IPMI_BOOT_OPTIONS_PARAMETER_BOOT_FLAGS,
              GetBootOptionsResponse,
              &GetBootOptionsResponseSize
@@ -506,7 +505,7 @@ IpmiClearCmosBootFlags (
   ParameterData->Data2.Bits.CmosClear = IPMI_BOOT_FLAG_CLEAR_CMOS_NO;
   CopyMem (&SetBootOptionsRequest->ParameterData, ParameterData, sizeof (IPMI_BOOT_OPTIONS_RESPONSE_PARAMETER_5));
 
-  Status = IpmiSetSystemBootOptions (
+  Status = IpmiSetSystemBootOptionsExt (
              SetBootOptionsRequest,
              SetBootOptionsRequestSize,
              &CompletionCode

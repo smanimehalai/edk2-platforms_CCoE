@@ -88,7 +88,7 @@ IpmiGetBmcLanInfo (
 **/
 EFI_STATUS
 EFIAPI
-IpmiSetSystemBootOptions (
+IpmiSetSystemBootOptionsExt (
   IN  IPMI_SET_BOOT_OPTIONS_REQUEST  *SetBootOptionsRequest,
   IN  UINT32                         SetBootOptionsRequestSize,
   OUT UINT8                          *CompletionCode
@@ -107,7 +107,7 @@ IpmiSetSystemBootOptions (
 **/
 EFI_STATUS
 EFIAPI
-IpmiGetSystemBootOptions (
+IpmiGetSystemBootOptionsExt (
   IN     UINT8                          ParameterSelector,
   OUT    IPMI_GET_BOOT_OPTIONS_RESPONSE *GetBootOptionsResponse,
   IN OUT UINT32                         *GetBootOptionsResponseSize

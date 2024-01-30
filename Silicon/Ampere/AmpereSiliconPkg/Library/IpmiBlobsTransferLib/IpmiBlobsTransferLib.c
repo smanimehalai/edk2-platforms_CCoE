@@ -8,7 +8,6 @@
 
 #include <Uefi.h>
 
-#include <IndustryStandard/IpmiNetFnAppExt.h>
 #include <Library/BaseLib.h>
 #include <Library/BaseMemoryLib.h>
 #include <Library/DebugLib.h>
