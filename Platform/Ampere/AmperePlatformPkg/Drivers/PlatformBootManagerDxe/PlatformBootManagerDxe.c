@@ -428,7 +428,7 @@ GetUsbDescription (
     FreePool (Product);
   }
 
-  RemoveUnnecessarySpaces (Description, DescMaxSize);
+  RemoveUnnecessarySpaces (Description, DescMaxSize / sizeof (CHAR16));
 
   return Description;
 }
