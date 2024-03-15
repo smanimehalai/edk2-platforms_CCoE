@@ -326,11 +326,6 @@
   MdeModulePkg/Application/CapsuleApp/CapsuleApp.inf
 
   #
-  # EnrollAmpereSecureKey
-  #
-  Silicon/Ampere/AmpereAltraPkg/Application/EnrollAmpereSecureKey/EaskDynamicCommand.inf
-
-  #
   # Ipmi utilities
   #
   Silicon/Ampere/AmpereSiliconPkg/Application/IpmiUtil/IpmiUtilDynamicCommand.inf
