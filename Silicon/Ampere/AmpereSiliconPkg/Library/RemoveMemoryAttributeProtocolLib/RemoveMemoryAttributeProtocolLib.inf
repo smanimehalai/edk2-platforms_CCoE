@@ -1,0 +1,32 @@
+## @file
+#
+# Copyright (c) 2024, Ampere Computing LLC. All rights reserved.<BR>
+#
+# SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x0001001B
+  BASE_NAME                      = RemoveMemoryAttributeProtocolLib
+  FILE_GUID                      = 1F4C6245-0835-4166-9BD3-71A4431E7EE8
+  MODULE_TYPE                    = DXE_DRIVER
+  VERSION_STRING                 = 1.0
+  CONSTRUCTOR                    = RemoveMemoryAttributeProtocolLibConstructor
+
+[Sources]
+  RemoveMemoryAttributeProtocolLib.c
+
+[Packages]
+  MdeModulePkg/MdeModulePkg.dec
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  DebugLib
+  UefiBootServicesTableLib
+
+[Protocols]
+  gEfiMemoryAttributeProtocolGuid
+
+[Depex]
+  TRUE

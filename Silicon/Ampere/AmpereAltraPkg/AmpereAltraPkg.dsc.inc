@@ -662,6 +662,7 @@
 !if $(TPM2_ENABLE) == TRUE
       NULL|SecurityPkg/Library/DxeTpm2MeasureBootLib/DxeTpm2MeasureBootLib.inf
 !endif
+      NULL|Silicon/Ampere/AmpereSiliconPkg/Library/RemoveMemoryAttributeProtocolLib/RemoveMemoryAttributeProtocolLib.inf
   }
 
 !if $(SECURE_BOOT_ENABLE) == TRUE
