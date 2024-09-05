@@ -365,3 +365,8 @@
   # SystemFirmwareUpdateDxe
   #
   Silicon/Ampere/AmpereAltraPkg/Drivers/SystemFirmwareUpdateDxe/SystemFirmwareUpdateDxe.inf
+
+  #
+  # NVParamRuntimeDxe
+  #
+  Silicon/Ampere/AmpereAltraPkg/Drivers/NVParamRuntimeDxe/NVParamRuntimeDxe.inf
