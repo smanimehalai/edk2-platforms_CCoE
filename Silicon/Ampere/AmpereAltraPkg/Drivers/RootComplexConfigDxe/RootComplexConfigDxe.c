@@ -880,10 +880,6 @@ PcieRCScreenSetup (
     //
     OptionsOpCodeHandle = CreateDevMapOptions (RootComplex);
 
-    if ((RootComplex->DefaultDevMapLow != 0)
-        && (RootComplex->DefaultDevMapLow != DevMapModeAuto)) {
-      QuestionFlags |= EFI_IFR_FLAG_READ_ONLY;
-    }
 
     HiiCreateOneOfOpCode (
       StartOpCodeHandle,                        // Container for dynamic created opcodes
@@ -904,10 +900,6 @@ PcieRCScreenSetup (
     OptionsOpCodeHandle = CreateDevMapOptions (RootComplex);
 
     QuestionFlagsSubItem = QuestionFlags;
-    if (RootComplex->DefaultDevMapLow != 0) {
-      QuestionFlagsSubItem |= EFI_IFR_FLAG_READ_ONLY;
-    }
-
     HiiCreateOneOfOpCode (
       StartOpCodeHandle,                         // Container for dynamic created opcodes
       0x8003 + MAX_EDITABLE_ELEMENTS * RCIndex,  // Question ID (or call it "key")
@@ -927,10 +919,6 @@ PcieRCScreenSetup (
     OptionsOpCodeHandle = CreateDevMapOptions (RootComplex);
 
     QuestionFlagsSubItem = QuestionFlags;
-    if (RootComplex->DefaultDevMapHigh != 0) {
-      QuestionFlagsSubItem |= EFI_IFR_FLAG_READ_ONLY;
-    }
-
     HiiCreateOneOfOpCode (
       StartOpCodeHandle,                         // Container for dynamic created opcodes
       0x8004 + MAX_EDITABLE_ELEMENTS * RCIndex,  // Question ID (or call it "key")
