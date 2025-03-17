@@ -782,11 +782,12 @@ PcieRCScreenSetup (
   VOID               *EndOpCodeHandle;
   VOID               *OptionsOpCodeHandle;
   VOID               *StartOpCodeHandle;
+  UINT16             MaxCores; 
 //><ADLINK-MS20232710>//
   EFI_STRING_ID      StrId;
 //><ADLINK-MS20232710>//
   RootComplex = GetRootComplex (RCIndex);
-
+  MaxCores = GetMaximumNumberOfCores();
   // Initialize the container for dynamic opcodes
   StartOpCodeHandle = HiiAllocateOpCodeHandle ();
   ASSERT (StartOpCodeHandle != NULL);
@@ -869,7 +870,7 @@ PcieRCScreenSetup (
       NULL
       ),                                       // Prompt
     STRING_TOKEN (STR_PCIE_RC_STATUS_HELP),    // Help
-    QuestionFlags,                             // QuestionFlags
+	(RCIndex == 6) ? QuestionFlags | EFI_IFR_FLAG_READ_ONLY : QuestionFlags,     // Question flag
     0,                                         // CheckBoxFlags
     NULL                                       // DefaultsOpCodeHandle
     );
@@ -888,7 +889,7 @@ PcieRCScreenSetup (
       BifurLoVarOffset,                         // Offset in Buffer Storage
       STRING_TOKEN (STR_PCIE_RCA_BIFUR),        // Question prompt text
       STRING_TOKEN (STR_PCIE_RCA_BIFUR_HELP),   // Question help text
-      QuestionFlags,                            // Question flag
+	 (RCIndex == 6 && MaxCores == 128) ? QuestionFlags | EFI_IFR_FLAG_READ_ONLY : QuestionFlags,     // Question flag
       EFI_IFR_NUMERIC_SIZE_1,                   // Data type of Question Value
       OptionsOpCodeHandle,                      // Option Opcode list
       NULL                                      // Default Opcode is NULl
@@ -907,7 +908,8 @@ PcieRCScreenSetup (
       BifurLoVarOffset,                          // Offset in Buffer Storage
       STRING_TOKEN (STR_PCIE_RCB_LO_BIFUR),      // Question prompt text
       STRING_TOKEN (STR_PCIE_RCB_LO_BIFUR_HELP), // Question help text
-      QuestionFlagsSubItem,                      // Question flag
+	  (RCIndex == 6) ? QuestionFlags | EFI_IFR_FLAG_READ_ONLY :  QuestionFlagsSubItem,   // Question flag
+      //QuestionFlagsSubItem,                      // Question flag
       EFI_IFR_NUMERIC_SIZE_1,                    // Data type of Question Value
       OptionsOpCodeHandle,                       // Option Opcode list
       NULL                                       // Default Opcode is NULl
@@ -926,7 +928,8 @@ PcieRCScreenSetup (
       BifurHiVarOffset,                          // Offset in Buffer Storage
       STRING_TOKEN (STR_PCIE_RCB_HI_BIFUR),      // Question prompt text
       STRING_TOKEN (STR_PCIE_RCB_HI_BIFUR_HELP), // Question help text
-      QuestionFlagsSubItem,                      // Question flag
+	  (RCIndex == 6) ? QuestionFlags | EFI_IFR_FLAG_READ_ONLY :  QuestionFlagsSubItem,    // Question flag
+      //QuestionFlagsSubItem,                      // Question flag
       EFI_IFR_NUMERIC_SIZE_1,                    // Data type of Question Value
       OptionsOpCodeHandle,                     // Option Opcode list
       NULL                                       // Default Opcode is NULl
@@ -937,6 +940,12 @@ PcieRCScreenSetup (
   for (UINT8 PcieIndex=0; PcieIndex < AC01_PCIE_MAX_RCS_PER_SOCKET; PcieIndex++)
   {
   	  QuestionFlagsSubItem = QuestionFlags;
+	  // Check Read-Only Conditions
+	  if ((MaxCores < 128 && RCIndex == 6) ||
+        (MaxCores == 128 && ((RCIndex == 6 && (PcieIndex == 0 || PcieIndex == 1)) || 
+                             (RCIndex == 7 && PcieIndex == 0)))) {
+      QuestionFlagsSubItem |= EFI_IFR_FLAG_READ_ONLY;
+      }
   	  
   	  if (RootComplex->Pcie[PcieIndex].Active == 0)
   	  {

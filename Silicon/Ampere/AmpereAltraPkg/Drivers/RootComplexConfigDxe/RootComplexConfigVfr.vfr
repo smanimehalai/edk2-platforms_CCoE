@@ -112,11 +112,11 @@ formset
 
     subtitle text = STRING_TOKEN(STR_PCIE_RC6_FORM);
 
-    grayoutif  TRUE;
+    //grayoutif  TRUE;
       label LABEL_RC6_UPDATE;
       // dynamic content here
       label LABEL_RC6_END;
-    endif;
+    //endif;
   endform;
 
   form
