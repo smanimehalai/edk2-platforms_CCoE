@@ -337,6 +337,11 @@ I2cWaitTxData (
       DEBUG ((DEBUG_ERROR, "%a: Timeout waiting for TX buffer available\n", __FUNCTION__));
       return EFI_TIMEOUT;
     }
+
+    if ((I2cCheckErrors (Bus) & DW_IC_INTR_TX_ABRT) != 0) {
+      return EFI_ABORTED;
+    }
+
     MicroSecondDelay (mI2cBusList[Bus].PollingTime);
   }
 
@@ -543,12 +548,60 @@ Exit:
 }
 
 EFI_STATUS
+InternalSmbusReadDataLength (
+  UINT32  Bus,
+  UINT32 *Length
+  )
+{
+  EFI_STATUS Status;
+  UINTN      Base;
+  UINT32     CmdSend;
+
+  Base = mI2cBusList[Bus].Base;
+
+  CmdSend = DW_IC_DATA_CMD_CMD;
+  MmioWrite32 (Base + DW_IC_DATA_CMD, CmdSend);
+  I2cSync ();
+
+  if (I2cCheckErrors (Bus) != 0) {
+    DEBUG ((DEBUG_VERBOSE, "%a: Sending reading command error\n", __FUNCTION__));
+    return EFI_CRC_ERROR;
+  }
+
+  Status = I2cWaitRxData (Bus);
+  if (EFI_ERROR (Status)) {
+    DEBUG ((DEBUG_VERBOSE,
+      "%a: Reading Smbus data length failed to wait data\n",
+      __FUNCTION__
+      ));
+
+    if (Status != EFI_ABORTED) {
+      MmioWrite32 (Base + DW_IC_DATA_CMD, DW_IC_DATA_CMD_STOP);
+      I2cSync ();
+    }
+
+    return Status;
+  }
+
+  *Length = MmioRead32 (Base + DW_IC_DATA_CMD) & DW_IC_DATA_CMD_DAT_MASK;
+  I2cSync ();
+
+  if (I2cCheckErrors (Bus) != 0) {
+    DEBUG ((DEBUG_VERBOSE, "%a: Sending reading command error\n", __FUNCTION__));
+    return EFI_CRC_ERROR;
+  }
+  return EFI_SUCCESS;
+}
+
+EFI_STATUS
 InternalI2cRead (
   UINT32  Bus,
-  UINT8  *BufCmd,
-  UINT32 CmdLength,
-  UINT8  *Buf,
-  UINT32 *Length
+  UINT8   *BufCmd,
+  UINT32  CmdLength,
+  UINT8   *Buf,
+  UINT32  *Length,
+  BOOLEAN IsSmbus,
+  BOOLEAN PecCheck
   )
 {
   EFI_STATUS Status;
@@ -559,6 +612,7 @@ InternalI2cRead (
   UINTN      Count;
   UINTN      ReadCount;
   UINTN      WriteCount;
+  UINT32     ResponseLen;
 
   Status = EFI_SUCCESS;
   Base = mI2cBusList[Bus].Base;
@@ -601,6 +655,33 @@ InternalI2cRead (
   }
 
   WriteCount = 0;
+  if (IsSmbus == TRUE) {
+    //
+    // Read Smbus Data Length, first byte data.
+    //
+
+    Status = InternalSmbusReadDataLength (Bus, &ResponseLen);
+    if (EFI_ERROR (Status)) {
+      DEBUG ((DEBUG_VERBOSE, "%a: InternalSmbusReadDataLength failed\n", __FUNCTION__));
+      goto Exit;
+    }
+    WriteCount++;
+    Buf[ReadCount++] = ResponseLen;
+
+    if ((*Length < (ResponseLen + 2)) || (!PecCheck && ResponseLen == 0)) {
+      MmioWrite32 (Base + DW_IC_DATA_CMD, DW_IC_DATA_CMD_CMD | DW_IC_DATA_CMD_STOP);
+      I2cSync ();
+      Status = EFI_INVALID_PARAMETER;
+      goto Exit;
+    }
+    // Update Length with DataLength byte
+    *Length = ResponseLen + 1;
+    if (PecCheck) {
+      // Update length value with PEC byte
+      *Length += 1;
+    }
+  }
+
   while ((*Length - ReadCount) != 0) {
     TxLimit = mI2cBusList[Bus].TxFifo - MmioRead32 (Base + DW_IC_TXFLR);
     RxLimit = mI2cBusList[Bus].RxFifo - MmioRead32 (Base + DW_IC_RXFLR);
@@ -742,9 +823,50 @@ I2cRead (
 
   I2cSetSlaveAddr (Bus, SlaveAddr);
 
-  return InternalI2cRead (Bus, BufCmd, CmdLength, Buf, ReadLength);
+  return InternalI2cRead (Bus, BufCmd, CmdLength, Buf, ReadLength, FALSE, FALSE);
 }
 
+/**
+  Smbus block read
+
+  @param[in]     Bus          I2C bus Id.
+  @param[in]     SlaveAddr    The address of slave device on the bus.
+  @param[in]     BufCmd       Buffer where to send the command.
+  @param[in]     CmdLength    Length of BufCmd.
+  @param[in,out] Buf          Buffer where to put the read data to.
+  @param[in,out] ReadLength   Pointer to length of buffer.
+
+  @return EFI_SUCCESS            Read successfully.
+  @return EFI_INVALID_PARAMETER  A parameter is invalid.
+  @return EFI_UNSUPPORTED        The bus is not supported.
+  @return EFI_NOT_READY          The device/bus is not ready.
+  @return EFI_TIMEOUT            Timeout why transferring data.
+  @return EFI_CRC_ERROR          There are errors on receiving data.
+
+**/
+EFI_STATUS
+EFIAPI
+SmbusRead (
+  IN     UINT32  Bus,
+  IN     UINT32  SlaveAddr,
+  IN     UINT8   *BufCmd,
+  IN     UINT32  CmdLength,
+  IN OUT UINT8   *Buf,
+  IN OUT UINT32  *ReadLength,
+  IN     BOOLEAN PecCheck
+  )
+{
+  if (Bus >= AC01_I2C_MAX_BUS_NUM
+      || Buf == NULL
+      || ReadLength == NULL)
+  {
+    return EFI_INVALID_PARAMETER;
+  }
+
+  I2cSetSlaveAddr (Bus, SlaveAddr);
+
+  return InternalI2cRead (Bus, BufCmd, CmdLength, Buf, ReadLength, TRUE, PecCheck);
+}
 /**
  Setup new transaction with I2C slave device.
 

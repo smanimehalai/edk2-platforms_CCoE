@@ -6,6 +6,8 @@
 
 **/
 
+#include <Guid/PlatformInfoHob.h>
+
 #ifndef AMPERE_CPU_LIB_H_
 #define AMPERE_CPU_LIB_H_
 
@@ -300,6 +302,50 @@ GetNumberOfActiveCores (
   );
 
 /**
+  Get version of SCP.
+
+  @param[out]   ScpVer   Pointer to contain version of SCP value.
+**/
+VOID
+EFIAPI
+GetScpVersion (
+  UINT8 **ScpVer
+  );
+
+/**
+  Get date of build release for SCP.
+
+  @param[out]   ScpBuild   Pointer to contain date of build release for SCP.
+**/
+VOID
+EFIAPI
+GetScpBuild (
+  UINT8 **ScpBuild
+  );
+
+/**
+  Get information of DIMM List.
+
+  @param[out]   DimmList   Pointer contains information of DIMM List.
+**/
+VOID
+EFIAPI
+GetDimmList (
+  PLATFORM_DIMM_LIST **DimmList
+  );
+
+/**
+  Get information of DRAM.
+
+  @param[out]   DramInfo   Pointer contains information of DRAM.
+**/
+VOID
+EFIAPI
+GetDramInfo (
+  PLATFORM_DRAM_INFO **DramInfo
+  );
+
+/**
   Check if the logical CPU is enabled or not.
 
   @param    CpuId       The logical Cpu ID. Started from 0.
@@ -312,7 +358,6 @@ EFIAPI
 IsCpuEnabled (
   UINT16 CpuId
   );
-
 
 /**
   Check if the slave socket is present

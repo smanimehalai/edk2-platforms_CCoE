@@ -1052,6 +1052,14 @@ AutoLaneBifurcationRetry:
     // Hold link training
     StartLinkTraining (RootComplex, PcieIndex, FALSE);
 
+    // Clear BUSCTRL.CfgUrMask to set CRS (Configuration Request Retry Status) to 0xFFFF.FFFF
+    // rather than 0xFFFF.0001 as per PCIe specification requirement. Otherwise, this causes
+    // device drivers respond incorrectly on timeout due to long device operations.
+    TargetAddress = CsrBase + AC01_PCIE_CORE_BUS_CONTROL_REG;
+    Val = MmioRead32 (TargetAddress);
+    Val &= ~BUS_CTL_CFG_UR_MASK;
+    MmioWrite32 (TargetAddress, Val);
+
     if (!EnableAxiPipeClock (RootComplex, PcieIndex)) {
       DEBUG ((DEBUG_ERROR, "- Pcie[%d] - PIPE clock is not stable\n", PcieIndex));
       return RETURN_DEVICE_ERROR;
@@ -1160,11 +1168,11 @@ AutoLaneBifurcationRetry:
     // Assert PERST low to reset endpoint
     BoardPcieAssertPerst (RootComplex, PcieIndex, FALSE);
 
-    // Start link training
-    StartLinkTraining (RootComplex, PcieIndex, TRUE);
-
     // Complete the PERST pulse
     BoardPcieAssertPerst (RootComplex, PcieIndex, TRUE);
+
+    // Start link training
+    StartLinkTraining (RootComplex, PcieIndex, TRUE);
 
     // Lock programming of config space
     EnableDbiAccess  (RootComplex, PcieIndex, FALSE);
@@ -1684,6 +1692,30 @@ Ac01PcieCoreQoSLinkCheckRecovery (
   return LINK_CHECK_SUCCESS;
 }
 
+BOOLEAN
+Ac01PcieCoreCheckCardPresent (
+  IN AC01_PCIE_CONTROLLER  *PcieController
+  )
+{
+  EFI_PHYSICAL_ADDRESS  TargetAddress;
+  UINT32                ControlValue;
+
+  ControlValue = 0;
+
+  TargetAddress = PcieController->CsrBase;
+
+  ControlValue = MmioRead32 (TargetAddress + AC01_PCIE_CORE_LINK_CTRL_REG);
+
+  if (0 == LTSSMENB_GET (ControlValue)) {
+    //
+    // LTSSMENB is clear to 0x00 by Hardware -> link partner is connected.
+    //
+    return TRUE;
+  }
+
+  return FALSE;
+}
+
 VOID
 Ac01PcieCoreUpdateLink (
   IN  AC01_ROOT_COMPLEX *RootComplex,
@@ -1736,9 +1768,13 @@ Ac01PcieCoreUpdateLink (
         DisableCompletionTimeOut (RootComplex, PcieIndex, FALSE);
 
       } else {
-        *IsNextRoundNeeded = FALSE;
         FailedPciePtr[*FailedPcieCount] = PcieIndex;
         *FailedPcieCount += 1;
+
+        if (Ac01PcieCoreCheckCardPresent (Pcie)) {
+          *IsNextRoundNeeded = TRUE;
+          DEBUG ((DEBUG_INFO, "PCIE%d.%d Link retry\n", RootComplex->ID, PcieIndex));
+        }
       }
     }
   }

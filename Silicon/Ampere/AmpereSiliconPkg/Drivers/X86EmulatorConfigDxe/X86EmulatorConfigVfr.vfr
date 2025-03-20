@@ -1,0 +1,40 @@
+/** @file
+
+  Copyright (c) 2023, Ampere Computing LLC. All rights reserved.<BR>
+
+  SPDX-License-Identifier: BSD-2-Clause-Patent
+
+**/
+
+#include <Guid/HiiPlatformSetupFormset.h>
+#include <Guid/X86EmulatorConfigGuid.h>
+
+#include "X86EmulatorNVData.h"
+
+formset
+  guid    = X86_EMULATOR_CONFIG_FORMSET_GUID,
+  title   = STRING_TOKEN(STR_X86_EMULATOR_FORM),
+  help    = STRING_TOKEN(STR_X86_EMULATOR_HELP),
+  classguid = EFI_HII_PLATFORM_SETUP_FORMSET_GUID,
+
+  varstore X86_EMULATOR_CONFIG_VARSTORE_DATA,
+    varid = X86_EMULATOR_VARSTORE_ID,
+    name  = X86EmulatorConfigNVData,
+    guid  = X86_EMULATOR_CONFIG_FORMSET_GUID;
+
+  form
+    formid = MAIN_FORM_ID,
+    title = STRING_TOKEN(STR_X86_EMULATOR_FORM);
+
+    grayoutif ideqval X86EmulatorConfigNVData.X86EmulatorIsPresent == X86_EMULATOR_NOT_PRESENT;
+      oneof
+        varid  = X86EmulatorConfigNVData.EnableX86Emulator,
+        prompt = STRING_TOKEN(STR_X86_EMULATOR_OPTION),
+        help   = STRING_TOKEN(STR_X86_EMULATOR_OPTION),
+        flags   = RESET_REQUIRED,
+        option text = STRING_TOKEN (STR_X86_EMULATOR_ENABLE), value = X86_EMULATOR_ENABLE, flags = 0;
+        option text = STRING_TOKEN (STR_X86_EMULATOR_DISABLE), value = X86_EMULATOR_DISABLE, flags = DEFAULT;
+      endoneof;
+    endif;
+  endform;
+endformset;

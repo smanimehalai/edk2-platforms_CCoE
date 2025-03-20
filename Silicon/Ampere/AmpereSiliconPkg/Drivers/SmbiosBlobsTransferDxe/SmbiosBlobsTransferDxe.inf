@@ -1,0 +1,41 @@
+## @file
+#
+# Copyright (c) 2022, Ampere Computing LLC. All rights reserved.<BR>
+#
+# SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x0001001B
+  BASE_NAME                      = SmbiosBlobsTransferDxe
+  FILE_GUID                      = 071a47dc-3f1e-11ed-88f0-ab169fe4d1e4
+  MODULE_TYPE                    = DXE_DRIVER
+  VERSION_STRING                 = 1.0
+  ENTRY_POINT                    = SmbiosBlobsTransferEntryPoint
+
+[Sources.common]
+  SmbiosBlobsTransferDxe.c
+
+[Packages]
+  MdeModulePkg/MdeModulePkg.dec
+  MdePkg/MdePkg.dec
+  Silicon/Ampere/AmpereSiliconPkg/AmpereSiliconPkg.dec
+
+[LibraryClasses]
+  BaseLib
+  DebugLib
+  IpmiBlobsTransferLib
+  TimerLib
+  UefiBootServicesTableLib
+  UefiDriverEntryPoint
+  UefiLib
+
+[Guids]
+  gEfiSmbiosTableGuid   ## CONSUMES ## SystemTable
+  gEfiSmbios3TableGuid  ## CONSUMES ## SystemTable
+  gEfiEventExitBootServicesGuid  ## CONSUMES
+  gSmbiosBlobsTransferGuid        ## CONSUMES
+
+[Depex]
+  gIpmiProtocolGuid

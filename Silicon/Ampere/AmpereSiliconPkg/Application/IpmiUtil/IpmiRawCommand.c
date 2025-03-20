@@ -28,7 +28,7 @@
 **/
 EFI_STATUS
 EFIAPI
-IpmiUtilSendRawCommand (
+IpmiUtilSummitCommand (
   IN     UINT8  NetFunction,
   IN     UINT8  Command,
   IN     UINT8  *RequestData,
@@ -63,7 +63,7 @@ IpmiUtilSendRawCommand (
                            ResponseDataSize
                            );
   if (EFI_ERROR (Status)) {
-    Print (L"IpmiUtil: Send command to ipmi device failed - %r\n", Status);
+    DEBUG ((DEBUG_ERROR, "IpmiUtil: Send command to ipmi device failed - %r\n", Status));
     return Status;
   }
 
@@ -94,8 +94,13 @@ IpmiUtilRawCommandHandler (
   UINT8       *CmdData = NULL;
   UINT8       ResponseData[MAX_IPMI_CMD_DATA_SUPPORT];
   UINTN       ResponseSize, ResponseStringOutputSize;
-  UINTN       Index, DataIndex, StartCmdData;
+  UINTN       DataIndex;
   CHAR16      ResponseStringOutput[MAX_IPMI_CMD_DATA_SUPPORT * 4];
+  CHAR16      *NextString;
+  UINTN       StringIndex;
+  CHAR16      CommandDataAsString[MAX_IPMI_CMD_DATA_SUPPORT * sizeof (CHAR16)];
+  UINT8       Value;
+  UINTN       ReturnSize;
 
   ResponseSize = MAX_IPMI_CMD_DATA_SUPPORT;
 
@@ -107,60 +112,73 @@ IpmiUtilRawCommandHandler (
     return EFI_INVALID_PARAMETER;
   }
 
-  for (Index = 0, DataIndex = 0, StartCmdData = 0;
-       CmdAsString[Index] != L'\0';
-       ++DataIndex, ++Index)
-  {
+  CmdData     = NULL;
+  StringIndex = 0;
+  DataIndex   = 0;
+  Status      = EFI_ABORTED;
+
+  do {
+    NextString = CmdAsString + StringIndex;
+
     CmdData = ReallocatePool (
-                sizeof (UINT8) + DataIndex,
-                sizeof (UINT8) + DataIndex + 1,
+                DataIndex,
+                DataIndex + 1,
                 (VOID *)CmdData
                 );
     if (CmdData == NULL) {
-      return EFI_OUT_OF_RESOURCES;
+      Status = EFI_OUT_OF_RESOURCES;
+      break;
     }
 
-    Status = IpmiUtilUniStrToNumber (
-               CmdAsString + Index,
-               CmdData + DataIndex
-               );
-    if (EFI_ERROR (Status)) {
-      DEBUG ((DEBUG_ERROR, "Fail to convert string to number\r\n"));
+    if (EFI_ERROR (IpmiUtilUniStrToNumber (NextString, &Value))) {
+      ShellPrintHiiEx (
+        -1,
+        -1,
+        NULL,
+        STRING_TOKEN (STR_GEN_PARAM_INV),
+        HiiPackageHandle,
+        L"ipmiutil",
+        NextString
+        );
       Status = EFI_ABORTED;
-      goto Cleanup;
+      break;
     }
 
-    //
-    // Find next hex string.
-    //
-    while (CmdAsString[Index] != L' ') {
-      if (CmdAsString[Index] == L'\0') {
-        --Index;
+    *(CmdData + DataIndex) = Value;
+    DataIndex++;
+
+    while (CmdAsString[++StringIndex] != L'\0') {
+      if ((CmdAsString[StringIndex] == L' ') && (CmdAsString[StringIndex - 1] != L' ')) {
         break;
       }
-
-      ++Index;
     }
 
-    //
-    // Catching position of command data
-    //
-    if (DataIndex == 1) {
-      if (CmdAsString[Index + 1] == L'\0') {
-        StartCmdData = Index + 1;
-      } else {
-        StartCmdData = Index;
-      }
-    }
+    Status = EFI_SUCCESS;
+  } while (CmdAsString[StringIndex] != L'\0');
+
+  if (EFI_ERROR (Status)) {
+    goto Cleanup;
   }
 
-  if (Index < 2) {
-    DEBUG ((
-      DEBUG_ERROR,
-      "IpmiUtil: Dont have enough information to create ipmi request with raw data\n"
-      ));
+  if (DataIndex < 2) {
+    ShellPrintHiiEx (
+      -1,
+      -1,
+      NULL,
+      STRING_TOKEN (STR_GEN_INFO),
+      HiiPackageHandle,
+      L"Dont have enough information to create ipmi request with raw data"
+      );
     Status = EFI_ABORTED;
     goto Cleanup;
+  } else if (DataIndex > 2) {
+    IpmiUtilNumberToHexJoin (
+      CmdData + 2,
+      DataIndex - 2,
+      L' ',
+      &ReturnSize,
+      CommandDataAsString
+      );
   }
 
   if (IsVerbose) {
@@ -170,18 +188,18 @@ IpmiUtilRawCommandHandler (
                NULL,
                STRING_TOKEN (STR_GEN_IPMI_CMD_INFO),
                HiiPackageHandle,
-               L"IpmiUtil",
+               L"ipmiutil",
                *CmdData,
                *(CmdData + 1),
-               *(CmdAsString + StartCmdData) != L'\0' ?
-               CmdAsString + StartCmdData : L"No data"
+               (DataIndex > 2) ?
+               CommandDataAsString : L"No data"
                );
     if (EFI_ERROR (Status)) {
       DEBUG ((DEBUG_ERROR, "Fail to print command information - %r\r\n", Status));
     }
   }
 
-  Status = IpmiUtilSendRawCommand (
+  Status = IpmiUtilSummitCommand (
              *CmdData,
              *(CmdData + 1),
              (DataIndex - 2) == 0 ? NULL : (CmdData + 2),

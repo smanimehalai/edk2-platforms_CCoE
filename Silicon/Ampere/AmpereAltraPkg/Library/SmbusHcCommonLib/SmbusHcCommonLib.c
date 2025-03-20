@@ -175,13 +175,14 @@ SmbusHcCommonExecute (
     case EfiSmbusReadBlock:
       WriteTemp[0] = Command;
       DataLen = *Length + 2; // +1 byte for Data Length +1 byte for PEC
-      Status  = I2cRead (
+      Status  = SmbusRead (
                   I2C_BUS_NUMBER,
                   SlaveAddress.SmbusDeviceAddress,
                   WriteTemp,
                   1,
                   ReadTemp,
-                  (UINT32 *)&DataLen
+                  (UINT32 *)&DataLen,
+                  PecCheck
                   );
       if (EFI_ERROR (Status)) {
         if (Status != EFI_TIMEOUT) {

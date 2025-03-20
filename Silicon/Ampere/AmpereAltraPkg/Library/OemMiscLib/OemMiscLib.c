@@ -26,15 +26,19 @@
 #include <Guid/PlatformInfoHob.h>
 #include <IndustryStandard/ArmCache.h>
 
-#define CACHE_SOCKETED_SHIFT        3
-#define CACHE_LOCATION_SHIFT        5
-#define CACHE_ENABLED_SHIFT         7
-#define CACHE_OPERATION_MODE_SHIFT  8
+#include "IpmiFruInfo.h"
 
-#define PROCESSOR_VERSION_ALTRA     L"Ampere(R) Altra(R) Processor"
-#define PROCESSOR_VERSION_ALTRA_MAX L"Ampere(R) Altra(R) Max Processor"
+#define CACHE_SOCKETED_SHIFT          3
+#define CACHE_LOCATION_SHIFT          5
+#define CACHE_ENABLED_SHIFT           7
+#define CACHE_OPERATION_MODE_SHIFT    8
 
-#define VOLTAGE_SCALE_FACTOR        1000
+#define PROCESSOR_VERSION_ALTRA       L"Ampere(R) Altra(R) Processor"
+#define PROCESSOR_VERSION_ALTRA_MAX   L"Ampere(R) Altra(R) Max Processor"
+
+#define VOLTAGE_SCALE_FACTOR          1000
+
+#define SCP_VERSION_STRING_MAX_LENGTH 32
 
 typedef enum {
   CacheModeWriteThrough = 0,  ///< Cache is write-through
@@ -268,6 +272,20 @@ OemGetMaxProcessors (
 }
 
 /**
+  Gets the type of chassis for the system.
+
+  @return   MISC_CHASSIS_TYPE   The type of the chassis.
+**/
+MISC_CHASSIS_TYPE
+EFIAPI
+OemGetChassisType (
+  VOID
+  )
+{
+  return MiscChassisTypeRackMountChassis;
+}
+
+/**
   Returns whether the specified processor is present or not.
 
   @param    ProcessIndex   The processor index to check.
@@ -285,9 +303,76 @@ OemIsProcessorPresent (
     return TRUE;
   }
 
-  return IsSlaveSocketAvailable ();
+  return IsSlaveSocketActive ();
 }
 
+/**
+  Update the firmware version in SMBIOS Type 0.
+  This is the combination of UEFI and Ampere system firmware version.
+
+**/
+VOID
+UpdateFirmwareVersionString (
+  OUT CHAR16  *Version
+  )
+{
+  UINT8   UnicodeStrLen;
+  UINT8   FirmwareVersionStrLen;
+  UINT8   FirmwareVersionStrSize;
+  UINT8   *ScpVersion;
+  UINT8   *ScpBuild;
+  CHAR16  UnicodeStr[SMBIOS_STRING_MAX_LENGTH * sizeof (CHAR16)];
+  CHAR16  *FirmwareVersionPcdPtr;
+
+  FirmwareVersionStrLen = 0;
+  ZeroMem (UnicodeStr, sizeof (UnicodeStr));
+  FirmwareVersionPcdPtr  = (CHAR16 *)FixedPcdGetPtr (PcdFirmwareVersionString);
+  FirmwareVersionStrSize = SMBIOS_STRING_MAX_LENGTH * sizeof (CHAR16);
+
+  //
+  // Format of PcdFirmwareVersionString is
+  // "(MAJOR_VER).(MINOR_VER).(BUILD) Build YYYY.MM.DD", we only need
+  // "(MAJOR_VER).(MINOR_VER).(BUILD)" showed in BIOS version. Using
+  // space character to determine this string. Another case uses null
+  // character to end while loop.
+  //
+  while (*FirmwareVersionPcdPtr != ' ' && *FirmwareVersionPcdPtr != '\0') {
+    FirmwareVersionStrLen++;
+    FirmwareVersionPcdPtr++;
+  }
+
+  FirmwareVersionPcdPtr = (CHAR16 *)FixedPcdGetPtr (PcdFirmwareVersionString);
+  UnicodeStrLen         = FirmwareVersionStrLen * sizeof (CHAR16);
+  CopyMem (UnicodeStr, FirmwareVersionPcdPtr, UnicodeStrLen);
+
+  GetScpVersion (&ScpVersion);
+  GetScpBuild (&ScpBuild);
+  if ((ScpVersion == NULL) || (ScpBuild == NULL)) {
+    DEBUG ((
+      DEBUG_ERROR,
+      "%a:%d: Fail to get SMpro/PMpro information\n",
+      __FUNCTION__,
+      __LINE__
+      ));
+    UnicodeSPrint (
+      Version,
+      FirmwareVersionStrSize,
+      L"TianoCore %.*s (SYS: 0.00.00000000)",
+      FirmwareVersionStrLen,
+      (UINT16 *)UnicodeStr
+      );
+  } else {
+    UnicodeSPrint (
+      Version,
+      FirmwareVersionStrSize,
+      L"TianoCore %.*s (SYS: %a.%a)",
+      FirmwareVersionStrLen,
+      (UINT16 *)UnicodeStr,
+      ScpVersion,
+      ScpBuild
+      );
+  }
+}
 /**
   Updates the HII string for the specified field.
 
@@ -305,6 +390,7 @@ OemUpdateSmbiosInfo (
 {
   EFI_STRING UnicodeString;
   UINT8      StringLength;
+  CHAR8      *AsciiString;
   UINT32     *Ecid;
 
   StringLength = SMBIOS_STRING_MAX_LENGTH * sizeof (CHAR16);
@@ -320,6 +406,159 @@ OemUpdateSmbiosInfo (
   }
 
   switch (Field) {
+    case ProductNameType01:
+      AsciiString = IpmiFruInfoGet (FruProductName);
+      if (AsciiString != NULL) {
+        StringLength = AsciiStrLen (AsciiString) + 1;
+        AsciiStrToUnicodeStrS (AsciiString, UnicodeString, StringLength);
+      }
+
+      break;
+
+    case SystemManufacturerType01:
+      AsciiString = IpmiFruInfoGet (FruProductManufacturerName);
+      if (AsciiString != NULL) {
+        StringLength = AsciiStrLen (AsciiString) + 1;
+        AsciiStrToUnicodeStrS (AsciiString, UnicodeString, StringLength);
+      }
+
+      break;
+
+    case VersionType01:
+      AsciiString = IpmiFruInfoGet (FruProductVersion);
+      if (AsciiString != NULL) {
+        StringLength = AsciiStrLen (AsciiString) + 1;
+        AsciiStrToUnicodeStrS (AsciiString, UnicodeString, StringLength);
+      }
+
+      break;
+
+    case SerialNumType01:
+      AsciiString = IpmiFruInfoGet (FruProductSerialNumber);
+      if (AsciiString != NULL) {
+        StringLength = AsciiStrLen (AsciiString) + 1;
+        AsciiStrToUnicodeStrS (AsciiString, UnicodeString, StringLength);
+      }
+
+      break;
+
+    case SkuNumberType01:
+      AsciiString = IpmiFruInfoGet (FruProductExtra);
+      if (AsciiString != NULL) {
+        StringLength = AsciiStrLen (AsciiString) + 1;
+        AsciiStrToUnicodeStrS (AsciiString, UnicodeString, StringLength);
+      }
+
+      break;
+
+    case FamilyType01:
+      UnicodeSPrint (
+        UnicodeString,
+        StringLength,
+        IsAc01Processor () ? L"Altra\0" : L"Altra Max\0"
+        );
+
+      break;
+
+    case ProductNameType02:
+      AsciiString = IpmiFruInfoGet (FruBoardProductName);
+      if (AsciiString != NULL) {
+        StringLength = AsciiStrLen (AsciiString) + 1;
+        AsciiStrToUnicodeStrS (AsciiString, UnicodeString, StringLength);
+      }
+
+      break;
+
+    case AssetTagType02:
+      UnicodeSPrint (
+        UnicodeString,
+        StringLength,
+        L"Not Set"
+        );
+
+      break;
+
+    case VersionType02:
+      AsciiString = IpmiFruInfoGet (FruBoardPartNumber);
+      if (AsciiString != NULL) {
+        StringLength = AsciiStrLen (AsciiString) + 1;
+        AsciiStrToUnicodeStrS (AsciiString, UnicodeString, StringLength);
+      }
+
+      break;
+
+    case SerialNumberType02:
+      AsciiString = IpmiFruInfoGet (FruBoardSerialNumber);
+      if (AsciiString != NULL) {
+        StringLength = AsciiStrLen (AsciiString) + 1;
+        AsciiStrToUnicodeStrS (AsciiString, UnicodeString, StringLength);
+      }
+
+      break;
+
+    case BoardManufacturerType02:
+      AsciiString = IpmiFruInfoGet (FruBoardManufacturerName);
+      if (AsciiString != NULL) {
+        StringLength = AsciiStrLen (AsciiString) + 1;
+        AsciiStrToUnicodeStrS (AsciiString, UnicodeString, StringLength);
+      }
+
+      break;
+
+    case ChassisLocationType02:
+      UnicodeSPrint (
+        UnicodeString,
+        StringLength,
+        L"Base of Chassis"
+        );
+
+      break;
+
+    case SerialNumberType03:
+      AsciiString = IpmiFruInfoGet (FruChassisSerialNumber);
+      if (AsciiString != NULL) {
+        StringLength = AsciiStrLen (AsciiString) + 1;
+        AsciiStrToUnicodeStrS (AsciiString, UnicodeString, StringLength);
+      }
+
+      break;
+
+    case VersionType03:
+      AsciiString = IpmiFruInfoGet (FruChassisPartNumber);
+      if (AsciiString != NULL) {
+        StringLength = AsciiStrLen (AsciiString) + 1;
+        AsciiStrToUnicodeStrS (AsciiString, UnicodeString, StringLength);
+      }
+
+      break;
+
+    case ManufacturerType03:
+      AsciiString = IpmiFruInfoGet (FruBoardManufacturerName);
+      if (AsciiString != NULL) {
+        StringLength = AsciiStrLen (AsciiString) + 1;
+        AsciiStrToUnicodeStrS (AsciiString, UnicodeString, StringLength);
+      }
+
+      break;
+
+    case AssetTagType03:
+      AsciiString = IpmiFruInfoGet (FruProductAssetTag);
+      if (AsciiString != NULL) {
+        StringLength = AsciiStrLen (AsciiString) + 1;
+        AsciiStrToUnicodeStrS (AsciiString, UnicodeString, StringLength);
+      }
+
+      break;
+
+    case SkuNumberType03:
+      AsciiString = IpmiFruInfoGet (FruChassisExtra);
+      if (AsciiString != NULL) {
+        StringLength = AsciiStrLen (AsciiString) + 1;
+        AsciiStrToUnicodeStrS (AsciiString, UnicodeString, StringLength);
+      }
+
+      break;
+
     case ProcessorVersionType04:
       if (IsAc01Processor ()){
         UnicodeSPrint (
@@ -379,6 +618,10 @@ OemUpdateSmbiosInfo (
 
       break;
 
+    case BiosVersionType00:
+      UpdateFirmwareVersionString (UnicodeString);
+      break;
+
     default:
       UnicodeSPrint (
         UnicodeString,
@@ -392,4 +635,221 @@ OemUpdateSmbiosInfo (
 
 Exit:
   FreePool (UnicodeString);
+}
+
+/**
+  Fetches the Type 32 boot information status.
+
+  @return   MISC_BOOT_INFORMATION_STATUS_DATA_TYPE   Boot status.
+**/
+MISC_BOOT_INFORMATION_STATUS_DATA_TYPE
+EFIAPI
+OemGetBootStatus (
+  VOID
+  )
+{
+  return BootInformationStatusNoError;
+}
+
+/**
+  Fetches the chassis status when it was last booted.
+
+  @return   MISC_CHASSIS_STATE   Chassis status.
+**/
+MISC_CHASSIS_STATE
+EFIAPI
+OemGetChassisBootupState (
+  VOID
+  )
+{
+  return ChassisStateSafe;
+}
+
+/**
+  Fetches the chassis power supply/supplies status when last booted.
+
+  @return   MISC_CHASSIS_STATE   Chassis power supply/supplies status.
+**/
+MISC_CHASSIS_STATE
+EFIAPI
+OemGetChassisPowerSupplyState (
+  VOID
+  )
+{
+  return ChassisStateSafe;
+}
+
+/**
+  Fetches the chassis thermal status when last booted.
+
+  @return   MISC_CHASSIS_STATE   Chassis thermal status.
+**/
+MISC_CHASSIS_STATE
+EFIAPI
+OemGetChassisThermalState (
+  VOID
+  )
+{
+  return ChassisStateSafe;
+}
+
+/**
+  Fetches the chassis security status when last booted.
+
+  @return   MISC_CHASSIS_SECURITY_STATE   Chassis security status.
+**/
+MISC_CHASSIS_SECURITY_STATE
+EFIAPI
+OemGetChassisSecurityStatus (
+  VOID
+  )
+{
+  return ChassisSecurityStatusNone;
+}
+
+/**
+  Fetches the chassis height in RMUs (Rack Mount Units).
+
+  @return    UINT8   The height of the chassis.
+**/
+UINT8
+EFIAPI
+OemGetChassisHeight (
+  VOID
+  )
+{
+  return 2;
+}
+
+/**
+  Fetches the number of power cords.
+
+  @return    UINT8   The number of power cords.
+**/
+UINT8
+EFIAPI
+OemGetChassisNumPowerCords (
+  VOID
+  )
+{
+  return 2;
+}
+
+/** Fetches the BIOS release.
+
+  @return The BIOS release.
+**/
+UINT16
+EFIAPI
+OemGetBiosRelease (
+  VOID
+  )
+{
+  UINT16 BiosRelease;
+
+  BiosRelease = (UINT16)(((PcdGet8 (PcdSmbiosTables0MajorVersion)) << 8)
+                         | PcdGet8 (PcdSmbiosTables0MinorVersion));
+
+  return BiosRelease;
+}
+
+/**
+  Fetches the embedded controller firmware release.
+
+  @return   UINT16   The embedded controller firmware release.
+**/
+UINT16
+EFIAPI
+OemGetEmbeddedControllerFirmwareRelease (
+  VOID
+  )
+{
+  CHAR8  AsciiScpVer[SCP_VERSION_STRING_MAX_LENGTH];
+  UINT8  *ScpVer = NULL;
+  UINT8  Index;
+  UINT16 FirmwareRelease;
+
+  GetScpVersion (&ScpVer);
+  if (ScpVer == NULL) {
+    DEBUG ((
+      DEBUG_ERROR,
+      "%a:%d: Fail to get SMpro/PMpro information\n",
+      __FUNCTION__,
+      __LINE__));
+
+      return 0xFFFF;
+  }
+
+  CopyMem ((VOID *)AsciiScpVer, (VOID *)ScpVer, AsciiStrLen ((CHAR8 *)ScpVer));
+  /* The AsciiVersion is formated as "major.minor" */
+  for (Index = 0; Index < (UINTN)AsciiStrLen (AsciiScpVer); Index++) {
+    if (AsciiScpVer[Index] == '.') {
+      AsciiScpVer[Index] = '\0';
+      break;
+    }
+  }
+
+  FirmwareRelease = ((UINT8)AsciiStrDecimalToUintn (AsciiScpVer) << 8)
+                    + (UINT8)AsciiStrDecimalToUintn (AsciiScpVer + Index + 1);
+
+  return FirmwareRelease;
+}
+
+VOID
+ConvertIpmiGuidToSmbiosGuid (
+  IN OUT UINT8 *SmbiosGuid,
+  IN     UINT8 *IpmiGuid
+  )
+{
+  UINT8 Index;
+
+  //
+  // Node and clock seq field within the GUID
+  // are stored most-significant byte first in
+  // SMBIOS spec but LSB first in IPMI spec
+  // ->change its offset and byte-order
+  //
+  for (Index = 0; Index < 8; Index++) {
+    *(SmbiosGuid + 15 - Index) = *(IpmiGuid + Index);
+  }
+  //
+  // Time high, time mid and time low field
+  // are stored LSB first in both IPMI spec
+  // and SMBIOS spec
+  // ->only need change offset
+  //
+  *(SmbiosGuid + 6) = *(IpmiGuid + 8);
+  *(SmbiosGuid + 7) = *(IpmiGuid + 9);
+  *(SmbiosGuid + 4) = *(IpmiGuid + 10);
+  *(SmbiosGuid + 5) = *(IpmiGuid + 11);
+  *SmbiosGuid       = *(IpmiGuid + 12);
+  *(SmbiosGuid + 1) = *(IpmiGuid + 13);
+  *(SmbiosGuid + 2) = *(IpmiGuid + 14);
+  *(SmbiosGuid + 3) = *(IpmiGuid + 15);
+}
+
+/**
+  Fetches the system UUID.
+
+  @param[out]   SystemUuid   The pointer to the buffer to store the System UUID.
+**/
+VOID
+EFIAPI
+OemGetSystemUuid (
+  OUT GUID  *SystemUuid
+  )
+{
+  EFI_STATUS  Status;
+  EFI_GUID    Uuid;
+
+  if (SystemUuid == NULL) {
+    return;
+  }
+
+  Status = IpmiFruGetSystemUuid (&Uuid);
+  if (EFI_ERROR (Status)) {
+    DEBUG ((DEBUG_ERROR, "%a %d Can not get System UUID!\n", __FUNCTION__, __LINE__));
+  }
+
+  ConvertIpmiGuidToSmbiosGuid ((UINT8 *)SystemUuid, (UINT8 *)&Uuid);
 }

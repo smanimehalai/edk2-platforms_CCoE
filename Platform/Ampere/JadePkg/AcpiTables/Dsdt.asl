@@ -17,9 +17,6 @@ DefinitionBlock("Dsdt.aml", "DSDT", 0x02, "Ampere", "Jade", 1) {
 
   Scope(\_SB) {
 
-    Include ("CPU.asi")
-    Include ("PMU.asi")
-
     //
     // Hardware Monitor
     Device(HM00) {
@@ -1190,4 +1187,8 @@ DefinitionBlock("Dsdt.aml", "DSDT", 0x02, "Ampere", "Jade", 1) {
     Include ("PCI-S1.asi")
     Include ("PCI-PDRC.asi")
   }
+
+  Include ("CPU.asi")
+  Include ("PMU.asi")
+
 } // DSDT

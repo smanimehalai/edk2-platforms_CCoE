@@ -1,18 +1,20 @@
 /** @file
-  Provides functions to read FRU information from BMC via IPMI interface,
-  and update FRU PCDs appropriately.
+  Provides functions to read FRU information from BMC via IPMI interface.
+  The FRU information will be cached in the string package.
 
   Reference:
     - Platform Management FRU Information Storage Definition V1.0
 
-  Copyright (c) 2021, Ampere Computing LLC. All rights reserved.<BR>
+  Copyright (c) 2021-2022, Ampere Computing LLC. All rights reserved.<BR>
 
   SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
+#include <Uefi.h>
 #include <IndustryStandard/IpmiNetFnApp.h>
 #include <IndustryStandard/SmBios.h>
+#include <Library/AmpereCpuLib.h>
 #include <Library/BaseLib.h>
 #include <Library/BaseMemoryLib.h>
 #include <Library/DebugLib.h>
@@ -22,16 +24,94 @@
 #include <Library/MemoryAllocationLib.h>
 #include <Library/PcdLib.h>
 
-//
-// Assume that there is only one FRU device
-// and Device ID for Chassis/Board Information is 0.
-//
-#define FRU_DEVICE_ID_DEFAULT         0
+#include "IpmiFruInfo.h"
 
 //
 // Maximum length of FRU Area Information
 //
 #define FRU_AREA_LENGTH_MAX           256
+
+#define FRU_FIELD_DATA_DEFAULT        "To be filled by O.E.M\0"
+
+//
+// FRU Chassis Information
+//
+STATIC CHAR8 mFruChassisPartNumber[FRU_AREA_LENGTH_MAX] = FRU_FIELD_DATA_DEFAULT;
+STATIC CHAR8 mFruChassisSerialNumber[FRU_AREA_LENGTH_MAX] = FRU_FIELD_DATA_DEFAULT;
+STATIC CHAR8 mFruChassisExtra[FRU_AREA_LENGTH_MAX] = FRU_FIELD_DATA_DEFAULT;
+
+STATIC CHAR8 *mFruChassisInfo[] = {
+  mFruChassisPartNumber,
+  mFruChassisSerialNumber,
+  mFruChassisExtra
+};
+
+//
+// FRU Board Information
+//
+STATIC CHAR8 mFruBoardManufacturerName[FRU_AREA_LENGTH_MAX] = FRU_FIELD_DATA_DEFAULT;
+STATIC CHAR8 mFruBoardProductName[FRU_AREA_LENGTH_MAX] = FRU_FIELD_DATA_DEFAULT;
+STATIC CHAR8 mFruBoardSerialNumber[FRU_AREA_LENGTH_MAX] = FRU_FIELD_DATA_DEFAULT;
+STATIC CHAR8 mFruBoardPartNumber[FRU_AREA_LENGTH_MAX] = FRU_FIELD_DATA_DEFAULT;
+
+STATIC CHAR8 *mFruBoardInfo[] = {
+  mFruBoardManufacturerName,
+  mFruBoardProductName,
+  mFruBoardSerialNumber,
+  mFruBoardPartNumber
+};
+
+//
+// FRU Product Information
+//
+STATIC CHAR8 mFruProductManufacturerName[FRU_AREA_LENGTH_MAX] = FRU_FIELD_DATA_DEFAULT;
+STATIC CHAR8 mFruProductName[FRU_AREA_LENGTH_MAX] = FRU_FIELD_DATA_DEFAULT;
+STATIC CHAR8 mFruProductPartNumber[FRU_AREA_LENGTH_MAX] = FRU_FIELD_DATA_DEFAULT;
+STATIC CHAR8 mFruProductVersion[FRU_AREA_LENGTH_MAX] = FRU_FIELD_DATA_DEFAULT;
+STATIC CHAR8 mFruProductSerialNumber[FRU_AREA_LENGTH_MAX] = FRU_FIELD_DATA_DEFAULT;
+STATIC CHAR8 mFruProductAssetTag[FRU_AREA_LENGTH_MAX] = FRU_FIELD_DATA_DEFAULT;
+STATIC CHAR8 mFruProductFruFileId[FRU_AREA_LENGTH_MAX] = FRU_FIELD_DATA_DEFAULT;
+STATIC CHAR8 mFruProductExtra[FRU_AREA_LENGTH_MAX] = FRU_FIELD_DATA_DEFAULT;
+
+STATIC CHAR8 *mFruProductInfo[] = {
+  mFruProductManufacturerName,
+  mFruProductName,
+  mFruProductPartNumber,
+  mFruProductVersion,
+  mFruProductSerialNumber,
+  mFruProductAssetTag,
+  mFruProductFruFileId,
+  mFruProductExtra
+};
+
+//
+// All FRU Information
+//
+STATIC CHAR8 *mFruDataInfo[] = {
+  mFruChassisPartNumber,
+  mFruChassisSerialNumber,
+  mFruChassisExtra,
+  mFruBoardManufacturerName,
+  mFruBoardProductName,
+  mFruBoardSerialNumber,
+  mFruBoardPartNumber,
+  mFruProductManufacturerName,
+  mFruProductName,
+  mFruProductPartNumber,
+  mFruProductVersion,
+  mFruProductSerialNumber,
+  mFruProductAssetTag,
+  mFruProductFruFileId,
+  mFruProductExtra
+};
+
+STATIC BOOLEAN mReadFruInfo = FALSE;
+
+//
+// Assume that there is only one FRU device
+// and Device ID for Chassis/Board Information is 0.
+//
+#define FRU_DEVICE_ID_DEFAULT         0
 
 //
 // Maximum length of response data
@@ -102,14 +182,8 @@ ConvertEncodedDataToString (
   Length = FruData[Offset++] & 0x3F;
 
   if (Length == 0) {
-    String = AllocateZeroPool (DataSize + 1);
-    if (String == NULL) {
-      return NULL;
-    }
-
-    String[0] = L'\0';
     *StartingOffset = Offset;
-    return String;
+    return NULL;
   }
 
   switch (TypeCode) {
@@ -253,7 +327,7 @@ InternalReadFruData (
 }
 
 EFI_STATUS
-UpdateFruPcds (
+UpdateFruStringPack (
   VOID
   )
 {
@@ -267,8 +341,7 @@ UpdateFruPcds (
   CHAR8                  *String;
   UINTN                  StringSize;
   UINT8                  FruData[FRU_AREA_LENGTH_MAX];
-  UINT32                        SystemGuidResponseSize;
-  IPMI_GET_SYSTEM_GUID_RESPONSE SystemGuidResponse;
+  UINT8                  Index;
 
   Status = InternalReadFruData (0, sizeof (IPMI_FRU_COMMON_HEADER), FruData);
   if (EFI_ERROR (Status)) {
@@ -299,34 +372,18 @@ UpdateFruPcds (
     ASSERT_EFI_ERROR (Status);
     if (!EFI_ERROR (Status)) {
       StartingOffset = 3; /* Starting offset of Chassis Part Number */
-      String = ConvertEncodedDataToString (FruData, &StartingOffset);
-      if (String != NULL) {
-        StringSize = AsciiStrSize (String);
-        ASSERT (StringSize <= SMBIOS_STRING_MAX_LENGTH);
-
-        CopyMem (PcdGetPtr (PcdFruChassisPartNumber), (VOID *)String, StringSize);
-        FreePool (String);
-        String = NULL;
-      }
-
-      String = ConvertEncodedDataToString (FruData, &StartingOffset);
-      if (String != NULL) {
-        StringSize = AsciiStrSize (String);
-        ASSERT (StringSize <= SMBIOS_STRING_MAX_LENGTH);
-
-        CopyMem (PcdGetPtr (PcdFruChassisSerialNumber), (VOID *)String, StringSize);
-        FreePool (String);
-        String = NULL;
-      }
-
-      String = ConvertEncodedDataToString (FruData, &StartingOffset);
-      if (String != NULL) {
-        StringSize = AsciiStrSize (String);
-        ASSERT (StringSize <= SMBIOS_STRING_MAX_LENGTH);
-
-        CopyMem (PcdGetPtr (PcdFruChassisExtra), (VOID *)String, StringSize);
-        FreePool (String);
-        String = NULL;
+      for (Index = 0; Index < ARRAY_SIZE (mFruChassisInfo); Index++) {
+        String = ConvertEncodedDataToString (FruData, &StartingOffset);
+        if (String != NULL) {
+          StringSize = AsciiStrSize (String);
+          ASSERT (StringSize <= SMBIOS_STRING_MAX_LENGTH);
+          if (StringSize != 1) { // StringSize = 1 => Contain Null-terminated character
+            ZeroMem ((VOID *)mFruChassisInfo[Index], FRU_AREA_LENGTH_MAX);
+            CopyMem ((VOID *)mFruChassisInfo[Index], (VOID *)String, StringSize);
+          }
+          FreePool (String);
+          String = NULL;
+        }
       }
     }
   }
@@ -346,48 +403,18 @@ UpdateFruPcds (
     ASSERT_EFI_ERROR (Status);
     if (!EFI_ERROR (Status)) {
       StartingOffset = 6; /* Starting offset of Board Manufacturer */
-      String = ConvertEncodedDataToString (FruData, &StartingOffset);
-      ASSERT (String != NULL);
-      if (String != NULL) {
-        StringSize = AsciiStrSize (String);
-        ASSERT (StringSize <= SMBIOS_STRING_MAX_LENGTH);
-
-        CopyMem (PcdGetPtr (PcdFruBoardManufacturerName), (VOID *)String, StringSize);
-        FreePool (String);
-        String = NULL;
-      }
-
-      String = ConvertEncodedDataToString (FruData, &StartingOffset);
-      ASSERT (String != NULL);
-      if (String != NULL) {
-        StringSize = AsciiStrSize (String);
-        ASSERT (StringSize <= SMBIOS_STRING_MAX_LENGTH);
-
-        CopyMem (PcdGetPtr (PcdFruBoardProductName), (VOID *)String, StringSize);
-        FreePool (String);
-        String = NULL;
-      }
-
-      String = ConvertEncodedDataToString (FruData, &StartingOffset);
-      ASSERT (String != NULL);
-      if (String != NULL) {
-        StringSize = AsciiStrSize (String);
-        ASSERT (StringSize <= SMBIOS_STRING_MAX_LENGTH);
-
-        CopyMem (PcdGetPtr (PcdFruBoardSerialNumber), (VOID *)String, StringSize);
-        FreePool (String);
-        String = NULL;
-      }
-
-      String = ConvertEncodedDataToString (FruData, &StartingOffset);
-      ASSERT (String != NULL);
-      if (String != NULL) {
-        StringSize = AsciiStrSize (String);
-        ASSERT (StringSize <= SMBIOS_STRING_MAX_LENGTH);
-
-        CopyMem (PcdGetPtr (PcdFruBoardPartNumber), (VOID *)String, StringSize);
-        FreePool (String);
-        String = NULL;
+      for (Index = 0; Index < ARRAY_SIZE (mFruBoardInfo); Index++) {
+        String = ConvertEncodedDataToString (FruData, &StartingOffset);
+        if (String != NULL) {
+          StringSize = AsciiStrSize (String);
+          ASSERT (StringSize <= SMBIOS_STRING_MAX_LENGTH);
+          if (StringSize != 1) { // StringSize = 1 => Contain Null-terminated character
+            ZeroMem ((VOID *)mFruBoardInfo[Index], FRU_AREA_LENGTH_MAX);
+            CopyMem ((VOID *)mFruBoardInfo[Index], (VOID *)String, StringSize);
+          }
+          FreePool (String);
+          String = NULL;
+        }
       }
     }
   }
@@ -407,114 +434,20 @@ UpdateFruPcds (
     ASSERT_EFI_ERROR (Status);
     if (!EFI_ERROR (Status)) {
       StartingOffset = 3; /* Starting offset of Product Manufacturer */
-      String = ConvertEncodedDataToString (FruData, &StartingOffset);
-      ASSERT (String != NULL);
-      if (String != NULL) {
-        StringSize = AsciiStrSize (String);
-        ASSERT (StringSize <= SMBIOS_STRING_MAX_LENGTH);
-
-        CopyMem (PcdGetPtr (PcdFruProductManufacturerName), (VOID *)String, StringSize);
-        FreePool (String);
-        String = NULL;
-      }
-
-      String = ConvertEncodedDataToString (FruData, &StartingOffset);
-      ASSERT (String != NULL);
-      if (String != NULL) {
-        StringSize = AsciiStrSize (String);
-        ASSERT (StringSize <= SMBIOS_STRING_MAX_LENGTH);
-
-        CopyMem (PcdGetPtr (PcdFruProductName), (VOID *)String, StringSize);
-        FreePool (String);
-        String = NULL;
-      }
-
-      String = ConvertEncodedDataToString (FruData, &StartingOffset);
-      ASSERT (String != NULL);
-      if (String != NULL) {
-        StringSize = AsciiStrSize (String);
-        ASSERT (StringSize <= SMBIOS_STRING_MAX_LENGTH);
-
-        CopyMem (PcdGetPtr (PcdFruProductPartNumber), (VOID *)String, StringSize);
-        FreePool (String);
-        String = NULL;
-      }
-
-      String = ConvertEncodedDataToString (FruData, &StartingOffset);
-      ASSERT (String != NULL);
-      if (String != NULL) {
-        StringSize = AsciiStrSize (String);
-        ASSERT (StringSize <= SMBIOS_STRING_MAX_LENGTH);
-
-        CopyMem (PcdGetPtr (PcdFruProductVersion), (VOID *)String, StringSize);
-        FreePool (String);
-        String = NULL;
-      }
-
-      String = ConvertEncodedDataToString (FruData, &StartingOffset);
-      ASSERT (String != NULL);
-      if (String != NULL) {
-        StringSize = AsciiStrSize (String);
-        ASSERT (StringSize <= SMBIOS_STRING_MAX_LENGTH);
-
-        CopyMem (PcdGetPtr (PcdFruProductSerialNumber), (VOID *)String, StringSize);
-        FreePool (String);
-        String = NULL;
-      }
-
-      String = ConvertEncodedDataToString (FruData, &StartingOffset);
-      ASSERT (String != NULL);
-      if (String != NULL) {
-        StringSize = AsciiStrSize (String);
-        ASSERT (StringSize <= SMBIOS_STRING_MAX_LENGTH);
-
-        CopyMem (PcdGetPtr (PcdFruProductAssetTag), (VOID *)String, StringSize);
-        FreePool (String);
-        String = NULL;
-      }
-
-      String = ConvertEncodedDataToString (FruData, &StartingOffset);
-      ASSERT (String != NULL);
-      if (String != NULL) {
-        StringSize = AsciiStrSize (String);
-        ASSERT (StringSize <= SMBIOS_STRING_MAX_LENGTH);
-
-        CopyMem (PcdGetPtr (PcdFruProductFruFileId), (VOID *)String, StringSize);
-        FreePool (String);
-        String = NULL;
-      }
-
-      String = ConvertEncodedDataToString (FruData, &StartingOffset);
-      ASSERT (String != NULL);
-      if (String != NULL) {
-        StringSize = AsciiStrSize (String);
-        ASSERT (StringSize <= SMBIOS_STRING_MAX_LENGTH);
-
-        CopyMem (PcdGetPtr (PcdFruProductExtra), (VOID *)String, StringSize);
-        FreePool (String);
-        String = NULL;
+      for (Index = 0; Index < ARRAY_SIZE (mFruProductInfo); Index++) {
+        String = ConvertEncodedDataToString (FruData, &StartingOffset);
+        if (String != NULL) {
+          StringSize = AsciiStrSize (String);
+          ASSERT (StringSize <= SMBIOS_STRING_MAX_LENGTH);
+          if (StringSize != 1) { // StringSize = 1 => Contain Null-terminated character
+            ZeroMem ((VOID *)mFruProductInfo[Index], FRU_AREA_LENGTH_MAX);
+            CopyMem ((VOID *)mFruProductInfo[Index], (VOID *)String, StringSize);
+          }
+          FreePool (String);
+          String = NULL;
+        }
       }
     }
-  }
-
-  //
-  // Read MultiRecord Area
-  //
-  SystemGuidResponseSize = sizeof (SystemGuidResponse);
-
-  Status = IpmiSubmitCommand (
-             IPMI_NETFN_APP,
-             IPMI_APP_GET_SYSTEM_GUID,
-             NULL,
-             0,
-             (UINT8 *)&SystemGuidResponse,
-             &SystemGuidResponseSize
-             );
-
-  if (!EFI_ERROR (Status)) {
-    CopyMem (PcdGetPtr (PcdFruSystemUniqueID), (VOID *)SystemGuidResponse.Guid, sizeof (EFI_GUID));
-  } else {
-    DEBUG ((DEBUG_ERROR, "%a: Failed to read MultiRecord Area - %r\n", __FUNCTION__, Status));
   }
 
   return Status;
@@ -551,10 +484,66 @@ IpmiReadFruInfo (
     DEBUG ((DEBUG_INFO, "%a: InventoryAreaSize=%x\n", __FUNCTION__, GetFruInventoryAreaInfoResponse.InventoryAreaSize));
   }
 
-  //
-  // Retrieve FRU information from BMC via IPMI SSIF interface
-  //
-  Status = UpdateFruPcds ();
-
   return EFI_SUCCESS;
+}
+
+CHAR8 *
+EFIAPI
+IpmiFruInfoGet (
+  IPMI_FRU_FIELD_ID FieldId
+  )
+{
+  EFI_STATUS      Status;
+
+  ASSERT (FieldId < FruFieldIdMax);
+
+  if (!mReadFruInfo) {
+    Status = IpmiReadFruInfo ();
+    if (EFI_ERROR (Status)) {
+      DEBUG ((DEBUG_ERROR, "%a: Failed to read FRU Information!\n", __FUNCTION__));
+    } else {
+      // Cache FRU information to the string package
+      Status = UpdateFruStringPack ();
+      if (EFI_ERROR (Status)) {
+        DEBUG ((DEBUG_ERROR, "%a: Failed to update the FRU string package!\n", __FUNCTION__));
+      }
+    }
+
+    mReadFruInfo = TRUE;
+  }
+
+  return mFruDataInfo[FieldId];
+}
+
+EFI_STATUS
+EFIAPI
+IpmiFruGetSystemUuid (
+  OUT EFI_GUID *SystemUuid
+  )
+{
+  EFI_STATUS                    Status;
+  UINT32                        SystemGuidResponseSize;
+  IPMI_GET_SYSTEM_GUID_RESPONSE SystemGuidResponse;
+
+  if (SystemUuid == NULL) {
+    return EFI_INVALID_PARAMETER;
+  }
+
+  SystemGuidResponseSize = sizeof (SystemGuidResponse);
+  Status = IpmiSubmitCommand (
+             IPMI_NETFN_APP,
+             IPMI_APP_GET_SYSTEM_GUID,
+             NULL,
+             0,
+             (UINT8 *)&SystemGuidResponse,
+             &SystemGuidResponseSize
+             );
+
+  if (!EFI_ERROR (Status)) {
+    CopyMem ((VOID *)SystemUuid, (VOID *)SystemGuidResponse.Guid, sizeof (EFI_GUID));
+  } else {
+    DEBUG ((DEBUG_ERROR, "%a: Failed to get the System GUID - %r\n", __FUNCTION__, Status));
+  }
+
+  return Status;
 }

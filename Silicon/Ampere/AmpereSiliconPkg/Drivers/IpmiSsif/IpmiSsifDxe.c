@@ -10,7 +10,6 @@
 #include <Uefi.h>
 
 #include <IndustryStandard/IpmiNetFnApp.h>
-#include <IndustryStandard/IpmiNetFnAppExt.h>
 #include <Library/DebugLib.h>
 #include <Library/SmbusLib.h>
 #include <Library/UefiBootServicesTableLib.h>

@@ -1,0 +1,49 @@
+## @file
+#
+# Copyright (c) 2023, Ampere Computing LLC. All rights reserved.<BR>
+#
+# SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x0001001B
+  BASE_NAME                      = X86EmulatorConfigDxe
+  FILE_GUID                      = 838E4D47-D567-4217-981B-FF805C25AA5A
+  MODULE_TYPE                    = DXE_DRIVER
+  VERSION_STRING                 = 1.0
+  ENTRY_POINT                    = X86EmulatorConfigDxeEntry
+
+[Sources]
+  X86EmulatorConfigDxe.c
+  X86EmulatorConfigDxe.uni
+  X86EmulatorConfigVfr.vfr
+
+[Packages]
+  MdeModulePkg/MdeModulePkg.dec
+  MdePkg/MdePkg.dec
+  Silicon/Ampere/AmpereSiliconPkg/AmpereSiliconPkg.dec
+
+[LibraryClasses]
+  DebugLib
+  DevicePathLib
+  HiiLib
+  MemoryAllocationLib
+  PrintLib
+  UefiBootServicesTableLib
+  UefiDriverEntryPoint
+  UefiLib
+  UefiRuntimeServicesTableLib
+
+[Protocols]
+  gEfiDevicePathProtocolGuid
+  gEfiHiiConfigAccessProtocolGuid
+  gEdkiiPeCoffImageEmulatorProtocolGuid
+  gEfiCpuArchProtocolGuid
+
+[Guids]
+  gX86EmulatorConfigFormSetGuid
+  gEfiEndOfDxeEventGroupGuid
+
+[Depex]
+  TRUE

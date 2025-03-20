@@ -19,10 +19,12 @@
   PlatformInitDxe.c
 
 [Packages]
+  MdeModulePkg/MdeModulePkg.dec
   MdePkg/MdePkg.dec
   Silicon/Ampere/AmpereAltraPkg/AmpereAltraPkg.dec
 
 [LibraryClasses]
+  AmpereCpuLib
   DebugLib
   FlashLib
   UefiBootServicesTableLib

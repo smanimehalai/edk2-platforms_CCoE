@@ -1,0 +1,15 @@
+//
+// Copyright (c) 2023, Ampere Computing LLC. All rights reserved.<BR>
+//
+// SPDX-License-Identifier: BSD-2-Clause-Patent
+//
+
+#langdef  en-US  "English"
+
+#string STR_X86_EMULATOR_FORM       #language en-US "X86Emulator"
+#string STR_X86_EMULATOR_HELP       #language en-US "Support loading x86_64 OptionROM"
+
+#string STR_X86_EMULATOR_OPTION     #language en-US "X86Emulator"
+
+#string STR_X86_EMULATOR_ENABLE     #language en-US "Enabled"
+#string STR_X86_EMULATOR_DISABLE    #language en-US "Disabled"

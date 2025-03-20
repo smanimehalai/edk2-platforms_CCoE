@@ -19,24 +19,40 @@
   LIBRARY_CLASS                  = OemMiscLib
 
 [Sources.common]
+  IpmiFruInfo.h
+  IpmiFruInfo.c
   OemMiscLib.c
 
 [Packages]
   ArmPkg/ArmPkg.dec
   MdeModulePkg/MdeModulePkg.dec
   MdePkg/MdePkg.dec
+  OutOfBandManagement/IpmiFeaturePkg/IpmiFeaturePkg.dec
   Silicon/Ampere/AmpereAltraPkg/AmpereAltraPkg.dec
+  Silicon/Ampere/AmpereSiliconPkg/AmpereSiliconPkg.dec
 
 [LibraryClasses]
   ArmLib
   AmpereCpuLib
   DebugLib
   HobLib
+  IpmiCommandLib
+  IpmiLib
   UefiLib
+
+[Protocols]
+  gEfiSmbiosProtocolGuid                     ## CONSUMED
+  gIpmiProtocolGuid                          ## CONSUMED
 
 [FixedPcd]
   gArmTokenSpaceGuid.PcdSystemMemoryBase
+  gAmpereTokenSpaceGuid.PcdSmbiosTables0MajorVersion
+  gAmpereTokenSpaceGuid.PcdSmbiosTables0MinorVersion
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFirmwareVersionString
 
 [Guids]
   gCpuConfigFormSetGuid
   gPlatformInfoHobGuid
+
+[Depex]
+  TRUE

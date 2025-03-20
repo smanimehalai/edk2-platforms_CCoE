@@ -14,7 +14,7 @@
 **/
 EFI_STATUS
 EFIAPI
-IpmiUtilSendRawCommand (
+IpmiUtilSummitCommand (
   IN     UINT8  NetFunction,
   IN     UINT8  Command,
   IN     UINT8  *RequestData,

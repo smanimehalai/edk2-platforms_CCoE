@@ -86,6 +86,7 @@
 #define AC01_PCIE_CORE_IRQ_ENABLE_REG           0x30
 #define AC01_PCIE_CORE_IRQ_EVENT_STAT_REG       0x38
 #define AC01_PCIE_CORE_BLOCK_EVENT_STAT_REG     0x3C
+#define AC01_PCIE_CORE_BUS_CONTROL_REG          0x40
 #define AC01_PCIE_CORE_RESET_REG                0xC000
 #define AC01_PCIE_CORE_CLOCK_REG                0xC004
 #define AC01_PCIE_CORE_MEM_READY_REG            0xC104
@@ -93,6 +94,7 @@
 
 // AC01_PCIE_CORE_LINK_CTRL_REG
 #define LTSSMENB_SET(dst, src)              (((dst) & ~0x1) | (((UINT32) (src)) & 0x1))
+#define LTSSMENB_GET(dst)                   ((dst) & (BIT0))
 #define   HOLD_LINK_TRAINING                0
 #define   START_LINK_TRAINING               1
 #define DEVICETYPE_SET(dst, src)            (((dst) & ~0xF0) | (((UINT32) (src) << 4) & 0xF0))
@@ -125,6 +127,9 @@
 
 // AC01_PCIE_CORE_BLOCK_EVENT_STAT_REG
 #define LINKUP_MASK              0x1
+
+// AC01_PCIE_CORE_BUS_CONTROL_REG
+#define BUS_CTL_CFG_UR_MASK      0x8
 
 // AC01_PCIE_CORE_RESET_REG
 #define DWC_PCIE_SET(dst, src)   (((dst) & ~0x1) | (((UINT32) (src)) & 0x1))

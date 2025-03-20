@@ -1,0 +1,29 @@
+## @file
+#
+#  Copyright (c) 2022, Ampere Computing. All rights reserved.<BR>
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+##
+
+[Defines]
+  INF_VERSION                    = 0x0001001B
+  BASE_NAME                      = IpmiBlobsTransferLib
+  FILE_GUID                      = 62174cb2-3f09-11ed-bb95-cfea7be5c516
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = IpmiBlobsTransferLib
+  CONSTRUCTOR                    = IpmiBlobsTransferLibConstructor
+
+[Sources.common]
+  IpmiBlobsTransferLib.c
+
+[Packages]
+  MdeModulePkg/MdeModulePkg.dec
+  MdePkg/MdePkg.dec
+  Silicon/Ampere/AmpereSiliconPkg/AmpereSiliconPkg.dec
+
+[LibraryClasses]
+  BaseLib
+  BaseMemoryLib
+  DebugLib
+  IpmiLib

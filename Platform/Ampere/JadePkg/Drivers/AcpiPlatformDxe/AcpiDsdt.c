@@ -251,7 +251,13 @@ AcpiPatchDsu (
   UINTN Index;
 
   for (Index = 0; Index < PLATFORM_CPU_MAX_NUM_CORES; Index += PLATFORM_CPU_NUM_CORES_PER_CPM) {
-    AsciiSPrint (NodePath, sizeof (NodePath), "\\_SB.DU%2X._STA", Index / PLATFORM_CPU_NUM_CORES_PER_CPM);
+    AsciiSPrint (
+      NodePath,
+      sizeof (NodePath),
+      "\\_SB.SYST.CL%2X.DU%2X._STA",
+      Index / PLATFORM_CPU_NUM_CORES_PER_CPM,
+      Index / PLATFORM_CPU_NUM_CORES_PER_CPM
+      );
     if (IsCpuEnabled (Index)) {
       AcpiDSDTSetNodeStatusValue (NodePath, 0xf);
     } else {
@@ -521,7 +527,7 @@ AcpiPatchPcieMmio32 (
       continue;
     }
 
-    if (!IsSlaveSocketAvailable () && Idx <= SOCKET0_LAST_RC) {
+    if (!IsSlaveSocketAvailable () && Idx <= SOCKET0_LAST_RC && Idx >= SOCKET0_FIRST_RC) {
       //
       // Patch MMIO32 resource in 1P system
       //

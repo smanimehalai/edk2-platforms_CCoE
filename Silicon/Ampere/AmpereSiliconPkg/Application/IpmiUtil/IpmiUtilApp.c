@@ -44,7 +44,7 @@ IpmiUtilApplicationEntryPoint (
 {
   EFI_STATUS  Status;
   UINTN       Index;
-  LIST_ENTRY  *ArgumentList;
+  LIST_ENTRY  *ArgumentList = NULL;
 
   mIpmiUtilAppHii = InitializeHiiPackage (ImageHandle);
   if (mIpmiUtilAppHii == NULL) {

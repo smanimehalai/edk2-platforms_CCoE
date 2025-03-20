@@ -826,6 +826,90 @@ GetNumberOfActiveCores (
 }
 
 /**
+  Get version of SCP.
+
+  @param[out]   ScpVer   Pointer to contain version of SCP value.
+**/
+VOID
+EFIAPI
+GetScpVersion (
+  UINT8 **ScpVer
+  )
+{
+  PLATFORM_INFO_HOB *PlatformHob;
+
+  PlatformHob = GetPlatformHob ();
+  if (PlatformHob != NULL) {
+    *ScpVer = (UINT8 *)PlatformHob->SmPmProVer;
+  } else {
+    *ScpVer = NULL;
+  }
+}
+
+/**
+  Get date of build release for SCP.
+
+  @param[out]   ScpBuild   Pointer to contain date of build release for SCP.
+**/
+VOID
+EFIAPI
+GetScpBuild (
+  UINT8 **ScpBuild
+  )
+{
+  PLATFORM_INFO_HOB *PlatformHob;
+
+  PlatformHob = GetPlatformHob ();
+  if (PlatformHob != NULL) {
+    *ScpBuild = (UINT8 *)PlatformHob->SmPmProBuild;
+  } else {
+    *ScpBuild = NULL;
+  }
+}
+
+/**
+  Get information of DIMM List.
+
+  @param[out]   DimmList   Pointer contains information of DIMM List.
+**/
+VOID
+EFIAPI
+GetDimmList (
+  PLATFORM_DIMM_LIST **DimmList
+  )
+{
+  PLATFORM_INFO_HOB *PlatformHob;
+
+  PlatformHob = GetPlatformHob ();
+  if (PlatformHob != NULL) {
+    *DimmList = &PlatformHob->DimmList;
+  } else {
+    *DimmList = NULL;
+  }
+}
+
+/**
+  Get information of DRAM.
+
+  @param[out]   DramInfo   Pointer contains information of DRAM.
+**/
+VOID
+EFIAPI
+GetDramInfo (
+  PLATFORM_DRAM_INFO **DramInfo
+  )
+{
+  PLATFORM_INFO_HOB *PlatformHob;
+
+  PlatformHob = GetPlatformHob ();
+  if (PlatformHob != NULL) {
+    *DramInfo = &PlatformHob->DramInfo;
+  } else {
+    *DramInfo = NULL;
+  }
+}
+
+/**
   Check if the logical CPU is enabled or not.
 
   @param    CpuId       The logical Cpu ID. Started from 0.

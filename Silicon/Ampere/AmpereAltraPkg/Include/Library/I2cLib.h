@@ -65,6 +65,36 @@ I2cRead (
   );
 
 /**
+  Smbus block read
+
+  @param[in]     Bus          I2C bus Id.
+  @param[in]     SlaveAddr    The address of slave device on the bus.
+  @param[in]     BufCmd       Buffer where to send the command.
+  @param[in]     CmdLength    Length of BufCmd.
+  @param[in,out] Buf          Buffer where to put the read data to.
+  @param[in,out] ReadLength   Pointer to length of buffer.
+
+  @return EFI_SUCCESS            Read successfully.
+  @return EFI_INVALID_PARAMETER  A parameter is invalid.
+  @return EFI_UNSUPPORTED        The bus is not supported.
+  @return EFI_NOT_READY          The device/bus is not ready.
+  @return EFI_TIMEOUT            Timeout why transferring data.
+  @return EFI_CRC_ERROR          There are errors on receiving data.
+
+**/
+EFI_STATUS
+EFIAPI
+SmbusRead (
+  IN     UINT32  Bus,
+  IN     UINT32  SlaveAddr,
+  IN     UINT8   *BufCmd,
+  IN     UINT32  CmdLength,
+  IN OUT UINT8   *Buf,
+  IN OUT UINT32  *ReadLength,
+  IN     BOOLEAN PecCheck
+  );
+
+/**
  Setup new transaction with I2C slave device.
 
   @param[in] Bus      I2C bus Id.

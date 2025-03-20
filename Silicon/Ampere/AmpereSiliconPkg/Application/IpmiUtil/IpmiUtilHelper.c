@@ -27,13 +27,13 @@
 
   @param[in] Array Pointer to array which will be converted
   @param[in] ArraySize The array size in bytes
-  @param[in] Seperator The character seperates the elements in array,
-                       default is comm ','
+  @param[in] Seperator The character separates the elements in array,
+                       default is comma ','
   @param[out] ReturnArraySize They size in bytes of returned array
   @param[out] ReturnArray     Pointer to buffer which contains new string,
                               caller must prepare this buffer
   @retval EFI_SUCCESS         Successfully convert
-  @retval EFI_INVALID_PARAMETER One or more paramters is invalid
+  @retval EFI_INVALID_PARAMETER One or more parameters is invalid
 **/
 EFI_STATUS
 EFIAPI
@@ -96,7 +96,7 @@ IpmiUtilNumberToHexJoin (
 }
 
 /**
-  Convert 1byte hex string to a number.
+  Convert string to a number.
   The seperator is Null terminator or space character.
   Example:
      0xA -> 10.
@@ -116,76 +116,20 @@ IpmiUtilUniStrToNumber (
   OUT UINT8 *Number
   )
 {
-  CHAR16   *RealStr;
-  UINT8    _Number;
-  BOOLEAN  IsMsbValid = FALSE;
-  BOOLEAN  IsLsbValid = FALSE;
+  EFI_STATUS  Status;
+  UINTN       Value;
 
-  if ((Strings == NULL) || (Number == NULL)) {
-    return EFI_INVALID_PARAMETER;
+  Status = StrHexToUintnS (Strings, NULL, &Value);
+  if (EFI_ERROR (Status)) {
+    return Status;
   }
 
-  if ((*(Strings + 1) == L'x') || (*(Strings + 1) == L'X')) {
-    RealStr = Strings + 2;
-  } else {
-    RealStr = Strings;
+  if (Value > 255) {
+    return EFI_UNSUPPORTED;
   }
 
-  _Number = 0;
+  *Number = (UINT8)Value;
 
-  if (((*RealStr >= L'0') && (*RealStr <= L'9'))) {
-    _Number   += (*RealStr - L'0') * 0x10;
-    IsMsbValid = TRUE;
-  }
-
-  if (((*RealStr >= L'a') && (*RealStr <= L'f'))) {
-    _Number   += (*RealStr - L'a' + 10) * 0x10;
-    IsMsbValid = TRUE;
-  }
-
-  if (((*RealStr >= L'A') && (*RealStr <= L'F'))) {
-    _Number   += (*RealStr - L'A' + 10) * 0x10;
-    IsMsbValid = TRUE;
-  }
-
-  if ((*(RealStr + 1) == L'\0') || (*(RealStr + 1) == L' ')) {
-    //
-    // Just one number
-    //
-    _Number /= 0x10;
-    goto DoneStrToNum;
-  }
-
-  if (((*(RealStr + 1) >= L'0') && (*(RealStr + 1) <= L'9'))) {
-    _Number   += (*(RealStr + 1)- L'0');
-    IsLsbValid = TRUE;
-  }
-
-  if (((*(RealStr + 1) >= L'a') && (*(RealStr + 1) <= L'f'))) {
-    _Number   += (*(RealStr + 1) - L'a' + 10);
-    IsLsbValid = TRUE;
-  }
-
-  if (((*(RealStr + 1) >= L'A') && (*(RealStr + 1) <= L'F'))) {
-    _Number   += (*(RealStr + 1)- L'A' + 10);
-    IsLsbValid = TRUE;
-  }
-
-  //
-  // Just support 1byte hex string
-  //
-  if ((*(RealStr + 2) != L'\0') && (*(RealStr + 2) != L' ')) {
-    return EFI_INVALID_PARAMETER;
-  }
-
-DoneStrToNum:
-  if (!IsMsbValid || (!IsMsbValid && !IsLsbValid)) {
-    Print (L"IpmiUtil: Invalid parameter (NetFn, Cmd, Data)\n");
-    *Number = 0xFF;
-    return EFI_INVALID_PARAMETER;
-  }
-
-  *Number = _Number;
   return EFI_SUCCESS;
 }
 
@@ -198,7 +142,7 @@ IpmiUtilInitShell (
 
   Status = ShellInitialize ();
   if (EFI_ERROR (Status)) {
-    DEBUG ((DEBUG_ERROR, "%a: Canot prepare shell lib - %r\r\n", __FUNCTION__, Status));
+    DEBUG ((DEBUG_ERROR, "%a: Cannot prepare shell lib - %r\r\n", __FUNCTION__, Status));
     return EFI_ABORTED;
   }
 
@@ -218,7 +162,7 @@ IpmiUtilInitShell (
 LIST_ENTRY
 CONST *
 IpmiUtilInitializeArgumentList (
-  IN EFI_HII_HANDLE HiiPackageHandle
+  IN EFI_HII_HANDLE  HiiPackageHandle
   )
 {
   EFI_STATUS  Status;
@@ -286,9 +230,11 @@ IpmiUtilInitializeArgumentList (
       L"ipmiutil",
       ProblemParam
       );
-    if (ParamList != NULL) {
-      FreePool ((VOID *)ParamList);
+    if (ProblemParam != NULL) {
+      FreePool ((VOID *)ProblemParam);
     }
+
+    ParamList = NULL;
 
     goto Done;
   }
@@ -306,7 +252,7 @@ Done:
 **/
 EFI_STATUS
 IpmiUtilDestroyArgumentList (
-  IN LIST_ENTRY *ArgList
+  IN LIST_ENTRY  *ArgList
   )
 {
   if (ArgList != NULL) {
@@ -333,101 +279,101 @@ IpmiUtilErrorCatching (
 {
   switch (*ResponseData) {
     case 0x00:
-      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_COMMAND_SUCCESS), HiiPackageHandle, *ResponseData);
+      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_COMMAND_SUCCESS_STRING), HiiPackageHandle, *ResponseData);
       break;
     case 0xC0:
-      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_NODE_BUSY), HiiPackageHandle, *ResponseData);
+      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_NODE_BUSY_STRING), HiiPackageHandle, *ResponseData);
       break;
     case 0xC1:
-      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_INVALID_COMMAND), HiiPackageHandle, *ResponseData);
+      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_INVALID_COMMAND_STRING), HiiPackageHandle, *ResponseData);
       break;
 
     case 0xC2:
-      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_COMMAND_INVALID_FOR_LUN), HiiPackageHandle, *ResponseData);
+      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_COMMAND_INVALID_FOR_LUN_STRING), HiiPackageHandle, *ResponseData);
       break;
 
     case 0xC3:
-      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_COMMAND_TIMEOUT), HiiPackageHandle, *ResponseData);
+      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_COMMAND_TIMEOUT_STRING), HiiPackageHandle, *ResponseData);
       break;
 
     case 0xC4:
-      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_OUT_OF_SPACE), HiiPackageHandle, *ResponseData);
+      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_OUT_OF_SPACE_STRING), HiiPackageHandle, *ResponseData);
       break;
 
     case 0xC5:
-      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_RESERVATION_CANCELLED), HiiPackageHandle, *ResponseData);
+      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_RESERVATION_CANCELLED_STRING), HiiPackageHandle, *ResponseData);
       break;
 
     case 0xC6:
-      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_REQUEST_DATA_TRUNCATED), HiiPackageHandle, *ResponseData);
+      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_REQUEST_DATA_TRUNCATED_STRING), HiiPackageHandle, *ResponseData);
       break;
 
     case 0xC7:
-      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_REQUEST_DATA_LENGTH_INVALID), HiiPackageHandle, *ResponseData);
+      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_REQUEST_DATA_LENGTH_INVALID_STRING), HiiPackageHandle, *ResponseData);
       break;
 
     case 0xC8:
-      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_REQUEST_DATA_LENGTH_LIMIT_EXCEEDED), HiiPackageHandle, *ResponseData);
+      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_REQUEST_DATA_LENGTH_LIMIT_EXCEEDED_STRING), HiiPackageHandle, *ResponseData);
       break;
 
     case 0xC9:
-      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_PARAMETER_OUT_OF_RANGE), HiiPackageHandle, *ResponseData);
+      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_PARAMETER_OUT_OF_RANGE_STRING), HiiPackageHandle, *ResponseData);
       break;
 
     case 0xCA:
-      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_CANNOT_RETURN_REQUESTED_NUMBER_OF_BYTES), HiiPackageHandle, *ResponseData);
+      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_CANNOT_RETURN_REQUESTED_NUMBER_OF_BYTES_STRING), HiiPackageHandle, *ResponseData);
       break;
 
     case 0xCB:
-      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_REQUESTED_SENSOR_DATA_OR_RECORD_NOT_PRESENT), HiiPackageHandle, *ResponseData);
+      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_REQUESTED_SENSOR_DATA_OR_RECORD_NOT_PRESENT_STRING), HiiPackageHandle, *ResponseData);
       break;
 
     case 0xCC:
-      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_INVALID_DATA_FIELD_IN_REQUEST), HiiPackageHandle, *ResponseData);
+      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_INVALID_DATA_FIELD_IN_REQUEST_STRING), HiiPackageHandle, *ResponseData);
       break;
 
     case 0xCD:
-      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_COMMAND_ILLEGAL_FOR_SENSOR_OR_RECORD_TYPE), HiiPackageHandle, *ResponseData);
+      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_COMMAND_ILLEGAL_FOR_SENSOR_OR_RECORD_TYPE_STRING), HiiPackageHandle, *ResponseData);
       break;
     case 0xCE:
-      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_COMMAND_RESPONSE_COULD_NOT_BE_PROVIDED), HiiPackageHandle, *ResponseData);
+      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_COMMAND_RESPONSE_COULD_NOT_BE_PROVIDED_STRING), HiiPackageHandle, *ResponseData);
       break;
     case 0xCF:
-      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_CANNOT_EXECUTE_DUPLICATE_REQUEST), HiiPackageHandle, *ResponseData);
+      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_CANNOT_EXECUTE_DUPLICATE_REQUEST_STRING), HiiPackageHandle, *ResponseData);
       break;
 
     case 0xD0:
-      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_SDR_REPOSITORY_IN_UPDATE_MODE), HiiPackageHandle, *ResponseData);
+      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_SDR_REPOSITORY_IN_UPDATE_MODE_STRING), HiiPackageHandle, *ResponseData);
       break;
 
     case 0xD1:
-      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_DEVICE_IN_FIRMWARE_UPDATE_MODE), HiiPackageHandle, *ResponseData);
+      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_DEVICE_IN_FIRMWARE_UPDATE_MODE_STRING), HiiPackageHandle, *ResponseData);
       break;
     case 0xD2:
-      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_BMC_INITIALIZATION_IN_PROGRESS), HiiPackageHandle, *ResponseData);
+      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_BMC_INITIALIZATION_IN_PROGRESS_STRING), HiiPackageHandle, *ResponseData);
       break;
 
     case 0xD3:
-      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_DESTINATION_UNAVAILABLE), HiiPackageHandle, *ResponseData);
+      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_DESTINATION_UNAVAILABLE_STRING), HiiPackageHandle, *ResponseData);
       break;
 
     case 0xD4:
-      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_INSUFFICIENT_PRIVILEGE_LEVEL), HiiPackageHandle, *ResponseData);
+      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_INSUFFICIENT_PRIVILEGE_LEVEL_STRING), HiiPackageHandle, *ResponseData);
       break;
     case 0xD5:
-      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_REQUEST_PARAMETER_NOT_SUPPORTED), HiiPackageHandle, *ResponseData);
+      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_REQUEST_PARAMETER_NOT_SUPPORTED_STRING), HiiPackageHandle, *ResponseData);
       break;
 
     case 0xD6:
-      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_REQUEST_PARAMETER_ILLEGAL), HiiPackageHandle, *ResponseData);
+      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_REQUEST_PARAMETER_ILLEGAL_STRING), HiiPackageHandle, *ResponseData);
       break;
 
     case 0xFF:
-      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_UNSPECIFIED_ERROR), HiiPackageHandle, *ResponseData);
+      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_UNSPECIFIED_ERROR_STRING), HiiPackageHandle, *ResponseData);
       break;
 
     default:
-      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_OEM_CMD_SPECIFIC), HiiPackageHandle, *ResponseData);
+      ShellPrintHiiEx (-1, -1, NULL, STRING_TOKEN (IPMI_COMP_CODE_OEM_CMD_SPECIFIC_STRING), HiiPackageHandle, *ResponseData);
       break;
   }
 
@@ -435,7 +381,7 @@ IpmiUtilErrorCatching (
 }
 
 /**
-  Hii Packe List has been stored on PE Image in build time.
+  Hii Package List has been stored on PE Image in build time.
   Retrieve HII package list from ImageHandle and publish to HII database.
 
   @param[in] ImageHandle  The image handle of the process.
@@ -508,10 +454,10 @@ IpmiUtilHelpHandler (
   )
 {
   return ShellPrintHiiEx (
-    -1,
-    -1,
-    NULL,
-    STRING_TOKEN (STR_GEN_CMD_INVALID),
-    HiiPackageHandle
-  );
+           -1,
+           -1,
+           NULL,
+           STRING_TOKEN (STR_GEN_CMD_INVALID),
+           HiiPackageHandle
+           );
 }

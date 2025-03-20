@@ -17,7 +17,6 @@
 
 #define UEFI_MISC_SIZE        0x1000
 
-BOOLEAN                       gFlashLibRuntime = FALSE;
 UINT8                         *gFlashLibPhysicalBuffer;
 UINT8                         *gFlashLibVirtualBuffer;
 
@@ -36,13 +35,9 @@ ConvertToPhysicalBuffer (
   IN UINT32 Size
   )
 {
-  if (gFlashLibRuntime) {
-    ASSERT (VirtualPtr != NULL);
-    CopyMem (gFlashLibVirtualBuffer, VirtualPtr, Size);
-    return gFlashLibPhysicalBuffer;
-  }
-
-  return VirtualPtr;
+  ASSERT (VirtualPtr != NULL);
+  CopyMem (gFlashLibVirtualBuffer, VirtualPtr, Size);
+  return gFlashLibPhysicalBuffer;
 }
 
 /**

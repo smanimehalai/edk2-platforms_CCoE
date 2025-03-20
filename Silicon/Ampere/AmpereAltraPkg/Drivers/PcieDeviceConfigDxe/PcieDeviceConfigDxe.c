@@ -627,6 +627,9 @@ GetPciClassString (
                                  1,
                                  Data
                                  );
+  if (EFI_ERROR (Status)) {
+    return STRING_TOKEN (STR_DEVICE_GOTO_HELP);
+  }
 
   switch (Data[3]) {
     case PCI_CLASS_OLD:
