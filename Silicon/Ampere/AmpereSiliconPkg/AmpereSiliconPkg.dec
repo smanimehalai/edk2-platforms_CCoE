@@ -104,7 +104,7 @@
   #
   # SMBus
   #
-  gAmpereTokenSpaceGuid.PcdSmbusI2cBusNumber|0x00|UINT8|0x00000007
+  gAmpereTokenSpaceGuid.PcdSmbusI2cBusNumber|0x03|UINT8|0x00000007
   gAmpereTokenSpaceGuid.PcdSmbusI2cBusSpeed|100000|UINT32|0x00000008 # Hz
 
   #
