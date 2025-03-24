@@ -36,9 +36,11 @@
 #define PROCESSOR_VERSION_ALTRA       L"Ampere(R) Altra(R) Processor"
 #define PROCESSOR_VERSION_ALTRA_MAX   L"Ampere(R) Altra(R) Max Processor"
 
-#define VOLTAGE_SCALE_FACTOR          1000
+#define VOLTAGE_SCALE_FACTOR          100
 
 #define SCP_VERSION_STRING_MAX_LENGTH 32
+
+#define CPU_ENABLE                    1
 
 typedef enum {
   CacheModeWriteThrough = 0,  ///< Cache is write-through
@@ -139,7 +141,7 @@ OemGetProcessorInformation (
 
   /* Processor Status */
   ProcessorStatus->Bits.SocketPopulated = OemIsProcessorPresent (ProcessorIndex);
-  ProcessorStatus->Bits.CpuStatus       = IsCpuEnabled (ProcessorIndex);
+  ProcessorStatus->Bits.CpuStatus       = CPU_ENABLE;
 
   /* Processor Charateristics */
   ProcessorCharacteristics->ProcessorReserved1              = 0;
@@ -161,7 +163,7 @@ OemGetProcessorInformation (
   MiscProcessorData->CurrentSpeed = CpuGetCurrentFreq ();
   // BIT7: the remaining seven bits of the field are set to
   // contain the processor’s current voltage times 10.
-  MiscProcessorData->Voltage      = (UINT8)(BIT7 | ((CpuGetVoltage (ProcessorIndex) / VOLTAGE_SCALE_FACTOR) * 10));
+  MiscProcessorData->Voltage      = (UINT8)(BIT7 | (CpuGetVoltage (ProcessorIndex) / VOLTAGE_SCALE_FACTOR));
 
   return TRUE;
 }
@@ -268,7 +270,7 @@ OemGetMaxProcessors (
   VOID
   )
 {
-  return GetNumberOfSupportedSockets ();
+  return GetNumberOfActiveSockets ();
 }
 
 /**
@@ -282,7 +284,7 @@ OemGetChassisType (
   VOID
   )
 {
-  return MiscChassisTypeRackMountChassis;
+  return MiscChassisTypeTower;
 }
 
 /**
@@ -718,7 +720,7 @@ OemGetChassisHeight (
   VOID
   )
 {
-  return 2;
+  return 0;
 }
 
 /**
@@ -732,7 +734,7 @@ OemGetChassisNumPowerCords (
   VOID
   )
 {
-  return 2;
+  return 1;
 }
 
 /** Fetches the BIOS release.

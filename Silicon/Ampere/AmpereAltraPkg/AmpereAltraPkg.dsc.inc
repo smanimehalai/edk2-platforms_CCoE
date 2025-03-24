@@ -540,8 +540,15 @@
   # SMBIOS PCDs
   #
   gArmTokenSpaceGuid.PcdProcessorManufacturer|L"Ampere(R)"
-  gEfiMdeModulePkgTokenSpaceGuid.PcdFirmwareVendor|L"Ampere(R)"
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFirmwareVendor|L"ADLINK"
   gArmTokenSpaceGuid.PcdProcessorAssetTag|L"Not Set"
+  
+  gArmTokenSpaceGuid.PcdSystemProductName|L"Ampere Altra Developer Platform"
+  gArmTokenSpaceGuid.PcdSystemVersion|L"A2"
+  
+  gArmTokenSpaceGuid.PcdBaseBoardManufacturer|L"ADLINK"
+  gArmTokenSpaceGuid.PcdBaseBoardProductName|L"Ampere Altra Developer Platform"
+  gArmTokenSpaceGuid.PcdBaseBoardVersion|L"A2"
 
 [PcdsDynamicHii.common.DEFAULT]
   gEfiMdePkgTokenSpaceGuid.PcdPlatformBootTimeOut|L"Timeout"|gEfiGlobalVariableGuid|0x0|10
