@@ -50,7 +50,17 @@ formset
         option text = STRING_TOKEN(STR_CPU_SLC_AS_L3_DISABLE), value = CPU_SLC_AS_L3_DISABLE, flags = 0;
       endoneof;
     endif;
-
+    
+    numeric
+      varid   = CpuConfigNVData.NumActiveCores,
+      prompt  = STRING_TOKEN(STR_NUM_ACTIVE_CORES_PROMPT),
+      help    = STRING_TOKEN(STR_NUM_ACTIVE_CORES_PROMPT_HELP),
+      flags   = INTERACTIVE | RESET_REQUIRED,
+      minimum = 0,
+      maximum = 128,
+      step    = 2,
+      default = 0,
+    endnumeric;
   endform;
 
 endformset;

@@ -20,3 +20,7 @@
 #string STR_CPU_SLC_AS_L3_HELP                      #language en-US "This option enables / disables PPTT to indicate SLC as L3$. This is limited to only 1P Monolithic mode."
 #string STR_CPU_SLC_AS_L3_ENABLE                    #language en-US "Enabled"
 #string STR_CPU_SLC_AS_L3_DISABLE                   #language en-US "Disabled"
+
+#string STR_NUM_ACTIVE_CORES_PROMPT                 #language en-US "Number of enabled cores:"
+#string STR_NUM_ACTIVE_CORES_PROMPT_HELP            #language en-US "Configure the number of cores to enable. If '0' maximum cores will be enabled. (Enter the value in multiple of 2)""
+#string STR_EMPTY_STRING                            #language en-US ""

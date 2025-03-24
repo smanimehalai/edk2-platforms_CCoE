@@ -24,6 +24,8 @@ typedef struct {
   UINT32 CpuSubNumaMode;
   UINT32 CpuSlcAsL3Permitted;
   UINT32 CpuSlcAsL3;
+  UINT8  NumActiveCores;  
+  UINT16 MaxCores;
 } CPU_VARSTORE_DATA;
 
 #pragma pack()

@@ -71,6 +71,8 @@ CpuNvParamGet (
 {
   EFI_STATUS Status;
   UINT32     Value;
+  UINT16     CPMCount;
+  UINT16     MaxCores; 
 
   ASSERT (Configuration != NULL);
 
@@ -86,6 +88,18 @@ CpuNvParamGet (
     Configuration->CpuSubNumaMode = Value;
   }
 
+  CPMCount = GetNumberOfConfiguredCPMs(0);
+  MaxCores = GetMaximumNumberOfCores();
+
+  if (CPMCount == 0) {
+    Configuration->NumActiveCores = MaxCores;
+  }
+  else {
+    Configuration->NumActiveCores = CPMCount * 2;
+    if (Configuration->NumActiveCores > MaxCores) {
+      Configuration->NumActiveCores = MaxCores;
+    }
+  }
   return EFI_SUCCESS;
 }
 
@@ -121,7 +135,13 @@ CpuNvParamSet (
     }
   }
 
-  return EFI_SUCCESS;
+  Status = SetNumberOfConfiguredCPMs(0, Configuration->NumActiveCores / 2);
+  DEBUG ((DEBUG_ERROR, "SetNumberOfConfiguredCPMs Status: %r\n", Status));
+  if (EFI_ERROR (Status)) {
+    DEBUG ((DEBUG_ERROR, "Failed to set number of active cores: %r\n", Status));
+    ASSERT_EFI_ERROR (Status);
+  }
+  return Status;
 }
 
 STATIC
