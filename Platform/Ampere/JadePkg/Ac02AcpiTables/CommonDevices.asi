@@ -126,6 +126,38 @@ Device(I2C4) {
     )
     Interrupt(ResourceConsumer, Level, ActiveHigh, Exclusive) { 105 }
   })
+  Name(SSCN, Package() { 427, 499, 0 })
+  Name(FMCN, Package() { 164, 319, 0 })
+}
+
+//><ADLINK-AG20232710>//
+//
+// DesignWare I2C on AHBC bus
+Device(I2C9) {
+  Name(_HID, "APMC0D0F")
+  Name(_UID, 9)
+  Name(_STR, Unicode("Altra Max I2C Device"))
+  Method(_STA, 0, NotSerialized) {
+    return (0x0f)
+  }
+  Name(_CCA, ONE)
+  Name(_CRS, ResourceTemplate() {
+    QWordMemory (
+      ResourceProducer,     // ResourceUsage
+      PosDecode,            // Decode
+      MinFixed,             // IsMinFixed
+      MaxFixed,             // IsMaxFixed
+      NonCacheable,         // Cacheable
+      ReadWrite,            // ReadAndWrite
+      0x0000000000000000,   // AddressGranularity - GRA
+      0x0000100002780000,   // AddressMinimum - MIN
+      0x000010000278FFFF,   // AddressMaximum - MAX
+      0x0000000000000000,   // AddressTranslation - TRA
+      0x0000000000010000    // RangeLength - LEN
+    )
+    Interrupt(ResourceConsumer, Level, ActiveHigh, Exclusive) { 110 }
+  })
+
   Device (IPI) {
     Name(_HID, "AMPC0004")
     Name(_CID, "IPI0001")
@@ -147,7 +179,7 @@ Device(I2C4) {
     Name(_CRS, ResourceTemplate ()
     {
       I2cSerialBusV2 (0x0010, ControllerInitiated, 0x00061A80,
-        AddressingMode7Bit, "\\_SB.I2C4",
+        AddressingMode7Bit, "\\_SB.I2C9",
         0x00, ResourceConsumer,, Exclusive,
         // Vendor specific data:
         // "BMC0",
@@ -677,3 +709,127 @@ Device(LED) {
     }
   })
 }
+
+//><ADLINK-MS20232510>//
+//
+//GPIO 0 to 7
+//
+
+  Device(GPO0) {
+  Name(_HID, "APMC0D07")
+  Name(_ADR, 0)
+  Name(_UID, 0)
+
+  Name (_CRS, ResourceTemplate ()  {
+    //Memory32Fixed (ReadWrite, 0x602E0000, 0x10000)
+    QWordMemory (
+      ResourceConsumer,
+      ,
+      MinFixed,
+      MaxFixed,
+      NonCacheable,
+      ReadWrite,
+      0x0000000000000000,
+      0x00001000026F0000,
+      0x00001000026FFFFF,
+      0x0000000000000000,
+      0x0000000000010000
+    )
+    Interrupt(ResourceConsumer, Level, ActiveHigh, Exclusive) { 476 }
+  })
+
+  Device(PRTa) {
+    Name(_ADR, 0)
+    Name(_UID, 0)
+    Name(_DSD, Package () {
+      ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+      Package () {
+        Package () {"reg", 0},
+        Package () {"snps,nr-gpios", 8},
+      }
+    })
+  }
+
+  }
+
+//
+//GPIO 16 to 23
+//
+
+  Device(GPO1) {
+  Name(_HID, "APMC0D07")
+  Name(_ADR, 0)
+  Name(_UID, 1)
+
+  Name (_CRS, ResourceTemplate ()  {
+    //Memory32Fixed (ReadWrite, 0x602E0000, 0x10000)
+    QWordMemory (
+      ResourceConsumer,
+      ,
+      MinFixed,
+      MaxFixed,
+      NonCacheable,
+      ReadWrite,
+      0x0000000000000000,
+      0x00001000027B0000,
+      0x00001000027BFFFF,
+      0x0000000000000000,
+      0x0000000000010000
+    )
+    Interrupt(ResourceConsumer, Level, ActiveHigh, Exclusive) { 477 }
+  })
+
+  Device(PRTa) {
+    Name(_ADR, 0)
+    Name(_UID, 0)
+    Name(_DSD, Package () {
+      ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+      Package () {
+        Package () {"reg", 0},
+        Package () {"snps,nr-gpios", 8},
+      }
+    })
+  }
+
+  }
+
+//
+//GPI 0 to 7
+//
+
+  Device(GPI0) {
+  Name(_HID, "APMC0D07")
+  Name(_ADR, 0)
+  Name(_UID, 2)
+
+  Name (_CRS, ResourceTemplate ()  {
+    //Memory32Fixed (ReadWrite, 0x602E0000, 0x10000)
+    QWordMemory (
+      ResourceConsumer,
+      ,
+      MinFixed,
+      MaxFixed,
+      NonCacheable,
+      ReadOnly,
+      0x0000000000000000,
+      0x00001000026D0000,
+      0x00001000026DFFFF,
+      0x0000000000000000,
+      0x0000000000010000
+    )
+  })
+
+  Device(PRTa) {
+    Name(_ADR, 0)
+    Name(_UID, 0)
+    Name(_DSD, Package () {
+      ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+      Package () {
+        Package () {"reg", 0},
+        Package () {"snps,nr-gpios", 8},
+      }
+    })
+  }
+
+  }
+//><ADLINK-MS20232510>//

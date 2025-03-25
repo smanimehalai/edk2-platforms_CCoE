@@ -31,6 +31,7 @@
 [Packages]
   MdeModulePkg/MdeModulePkg.dec
   MdePkg/MdePkg.dec
+  ArmPlatformPkg/ArmPlatformPkg.dec
   Silicon/Ampere/AmpereAltraPkg/AmpereAltraPkg.dec
 
 [LibraryClasses]
@@ -43,6 +44,7 @@
   UefiDriverEntryPoint
   UefiLib
   UefiRuntimeServicesTableLib
+  PL011UartLib
 
 [Protocols]
   gEfiRscHandlerProtocolGuid                    ## CONSUMES

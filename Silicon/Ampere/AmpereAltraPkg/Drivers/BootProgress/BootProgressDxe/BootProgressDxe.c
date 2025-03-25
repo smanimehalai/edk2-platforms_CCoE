@@ -20,6 +20,12 @@
 #include <Library/UefiBootServicesTableLib.h>
 #include <Pi/PiStatusCode.h>
 #include <Protocol/ReportStatusCodeHandler.h>
+#include <Library/PcdLib.h>
+#include <Library/PL011UartClockLib.h>
+#include <Library/PL011UartLib.h>
+#include <Library/SerialPortLib.h>
+
+#define _PCD_GET_MODE_64_PcdSerialDbgRegisterBase 0x0000100002620000
 
 typedef struct {
   UINT8                 Byte;
@@ -105,6 +111,27 @@ StatusCodeFilter (
   return FALSE;
 }
 
+EFI_STATUS
+SendShutdownSignal (
+  VOID
+  )
+{
+  UINTN   numofbytes;
+  UINT8   IpmiCmdBuf[] = {"[C0 00 15 01]\r\n"};
+  UINTN   IpmiCmdBufSize;
+  IpmiCmdBufSize = sizeof(IpmiCmdBuf);
+
+  numofbytes = PL011UartWrite ((UINTN)PcdGet64 (PcdSerialDbgRegisterBase), IpmiCmdBuf, IpmiCmdBufSize);
+  DEBUG ((DEBUG_INFO, "%a numofbytes %d\n", __FUNCTION__,numofbytes));
+
+  if (numofbytes == 0) {
+    DEBUG ((DEBUG_ERROR, "%a Failed to Write data\n", __FUNCTION__));
+    return EFI_INVALID_PARAMETER;
+  }
+
+  return EFI_SUCCESS;
+}
+
 /**
   Report status code listener of Boot Progress Dxe.
 
@@ -134,9 +161,9 @@ BootProgressListenerDxe (
   )
 {
   EFI_STATUS Status;
-  UINT8   BootStage;
-  BOOLEAN IsProgress = FALSE;
-  BOOLEAN IsError = FALSE;
+  UINT8      BootStage;
+  BOOLEAN    IsProgress = FALSE;
+  BOOLEAN    IsError = FALSE;
 
   if ((CodeType & EFI_STATUS_CODE_TYPE_MASK) == EFI_PROGRESS_CODE) {
     IsProgress= StatusCodeFilter (DxeProgressCode, Value);
@@ -167,6 +194,11 @@ BootProgressListenerDxe (
   {
     /* Set boot complete when reach to Exit Boot Service event or DXE Core Handoff To Next */
     mBootstate = BootComplete;
+    Status = SendShutdownSignal ();
+    if (EFI_ERROR (Status)) {
+      DEBUG ((DEBUG_ERROR, "%a Failed to SendShutdownSignal\n", __FUNCTION__));
+      return Status;
+    }
   } else {
     mBootstate = BootStart;
   }
