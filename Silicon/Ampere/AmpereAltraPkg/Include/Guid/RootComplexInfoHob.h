@@ -29,7 +29,7 @@ extern GUID gRootComplexInfoHobGuid;
 //
 // PCIe link speed
 //
-#define LINK_SPEED_NONE    0x00
+//><ADLINK-MS20232710>//
 #define LINK_SPEED_GEN1    0x01
 #define LINK_SPEED_GEN2    0x02
 #define LINK_SPEED_GEN3    0x04
@@ -43,6 +43,16 @@ typedef enum {
   DevMapModeAuto,
   MaxDevMapMode = DevMapModeAuto
 } DEV_MAP_MODE;
+
+//><ADLINK-MS20232710>//
+typedef enum {
+ PCIeSpeed1 = LINK_SPEED_GEN1,
+ PCIeSpeed2 = LINK_SPEED_GEN2,
+ PCIeSpeed3 = LINK_SPEED_GEN3,
+ PCIeSpeed4 =LINK_SPEED_GEN4,
+ MaxPCIeSpdeed = PCIeSpeed4
+} PCIE_GEN_SPEED;
+//><ADLINK-MS20232710>//
 
 //
 // PCIe controller index
@@ -92,6 +102,7 @@ typedef enum {
 //
 // Data structure to store the PCIe controller information
 //
+//><ADLINK-MS20240604>//
 typedef struct {
   PHYSICAL_ADDRESS  CsrBase;               // Base address of CSR block
   PHYSICAL_ADDRESS  SnpsRamBase;           // Base address of Synopsys SRAM
@@ -101,10 +112,12 @@ typedef struct {
   UINT8             CurWidth;              // Current lanes x2/x4/x8/x16
   UINT8             ID;                    // ID of the controller within Root Complex
   UINT8             DevNum;                // Device number as part of Bus:Dev:Func
+  UINT8             DefaultMaxGen;
   BOOLEAN           Active;                // Active? Used in bi-furcation mode
   BOOLEAN           LinkUp;                // PHY and PCIE linkup
   BOOLEAN           HotPlug;               // Hotplug support
 } AC01_PCIE_CONTROLLER;
+//><ADLINK-MS20240604>//
 
 //
 // Data structure to store the Root Complex information

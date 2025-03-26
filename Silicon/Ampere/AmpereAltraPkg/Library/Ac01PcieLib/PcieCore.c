@@ -1555,6 +1555,27 @@ Ac01PcieCoreGetEndpointInfo (
         PcieIndex
         ));
     } else {
+//><ADLINK-MS20233010>//	
+      Val = MmioRead32 (PcieCapBase + LINK_CAPABILITIES_REG);
+      switch (RootComplex->Pcie[PcieIndex].MaxGen) {
+        case LINK_SPEED_GEN1:
+           Val = CAP_MAX_LINK_SPEED_SET (Val, MAX_LINK_SPEED_25);
+           break;
+
+        case LINK_SPEED_GEN2:
+           Val = CAP_MAX_LINK_SPEED_SET (Val, MAX_LINK_SPEED_50);
+           break;
+
+        case LINK_SPEED_GEN3:
+           Val = CAP_MAX_LINK_SPEED_SET (Val, MAX_LINK_SPEED_80);
+           break;
+
+        default:
+           Val = CAP_MAX_LINK_SPEED_SET (Val, MAX_LINK_SPEED_160);
+           break;           
+     }
+     MmioWrite32 (PcieCapBase + LINK_CAPABILITIES_REG, Val);
+//><ADLINK-MS20233010>//	 
       Val = MmioRead32 (PcieCapBase + LINK_CAPABILITIES_REG);
       *EpMaxWidth = CAP_MAX_LINK_WIDTH_GET (Val);
       *EpMaxGen = CAP_MAX_LINK_SPEED_GET (Val);

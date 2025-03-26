@@ -28,6 +28,10 @@
 #string STR_PCIE_RCB_HI_BIFUR           #language en-US "Bifurcation 2nd x8"
 #string STR_PCIE_RCB_HI_BIFUR_HELP      #language en-US "Set bifurcation mode for 2nd x8 Root Complex Type-B"
 
+//><ADLINK-MS20232710>//
+#string STR_PCIE_GEN_SPEED              #language en-US "PCIe Speed"
+#string STR_PCIE_GEN_SPEED_HELP         #language en-US "Set PCIe Speed"
+//><ADLINK-MS20232710>//
 /////
 
 #string STR_PCIE_RC0_FORM               #language en-US "Root Complex 0 Configuration"
@@ -87,6 +91,14 @@
 #string STR_PCIE_BIFUR_SELECT_VALUE5    #language en-US "x4+x4"
 #string STR_PCIE_BIFUR_SELECT_VALUE6    #language en-US "x4+x2+x2"
 #string STR_PCIE_BIFUR_SELECT_VALUE7    #language en-US "x2+x2+x2+x2"
+
+//><ADLINK-MS20232710>//
+#string STR_PCIE_SPEED_GEN1             #language en-US "Gen1"
+#string STR_PCIE_SPEED_GEN2             #language en-US "Gen2"
+#string STR_PCIE_SPEED_GEN3             #language en-US "Gen3"
+#string STR_PCIE_SPEED_GEN4             #language en-US "Gen4"
+#string STR_PCIE_SPEED_GEN_NONE         #language en-US "Gen None"
+//><ADLINK-MS20232710>//
 
 #string STR_PCIE_SOCKET                 #language en-US "Socket"
 #string STR_PCIE_SOCKET_HELP            #language en-US "Socket 0 - Master; Socket 1 - Slave"
