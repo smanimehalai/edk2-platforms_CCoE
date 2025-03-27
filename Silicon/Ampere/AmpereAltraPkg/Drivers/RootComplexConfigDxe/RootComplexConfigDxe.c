@@ -1385,6 +1385,10 @@ RootComplexDriverEntry (
       VarStoreConfig->RCBifurcationLow[RCIndex] = RootComplex->DefaultDevMapLow;
       VarStoreConfig->RCBifurcationHigh[RCIndex] = RootComplex->DefaultDevMapHigh;
       VarStoreConfig->RCStatus[RCIndex] = RootComplex->Active;
+//><ADLINK-MS20232710>//      
+      for (UINT8 PcieIndex = 0; PcieIndex < AC01_PCIE_MAX_RCS_PER_SOCKET; PcieIndex++)
+      	VarStoreConfig->PCIeMaxGenSpeed[(RCIndex*AC01_PCIE_MAX_RCS_PER_SOCKET)+PcieIndex] = RootComplex->Pcie[PcieIndex].MaxGen ;
+//><ADLINK-MS20232710>//
       IsUpdated = TRUE;
     }
   }
