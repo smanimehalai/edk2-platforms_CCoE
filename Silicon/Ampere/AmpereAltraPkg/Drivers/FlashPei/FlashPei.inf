@@ -34,6 +34,7 @@
   PcdLib
   PeimEntryPoint
   ResetSystemLib
+  AmpereCpuLib
 
 [Ppis]
   gPeiIpmiPpiGuid              ### CONSUMES
