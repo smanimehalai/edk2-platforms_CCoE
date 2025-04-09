@@ -24,9 +24,10 @@ typedef struct {
   UINT32 CpuSubNumaMode;
   UINT32 CpuSlcAsL3Permitted;
   UINT32 CpuSlcAsL3;
-//><ADLINK-MS20233010>//
-  UINT8 CPMs[16];
-//><ADLINK-MS20233010>//
+//><ADLINK-MS20242406>//
+  UINT8  NumActiveCores;  
+  UINT16 MaxCores;
+//><ADLINK-MS20242406>//
 } CPU_VARSTORE_DATA;
 
 #pragma pack()
