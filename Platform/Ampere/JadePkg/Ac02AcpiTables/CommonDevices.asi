@@ -131,32 +131,88 @@ Device(I2C4) {
 //><ADLINK-AG20232710>//
 //
 // DesignWare I2C on AHBC bus
-Device(I2C9) {
-  Name(_HID, "APMC0D0F")
-  Name(_UID, 9)
-  Name(_STR, Unicode("Altra Max I2C Device"))
-  Method(_STA, 0, NotSerialized) {
-    return (0x0f)
-  }
-  Name(_CCA, ONE)
-  Name(_CRS, ResourceTemplate() {
-    QWordMemory (
-      ResourceProducer,     // ResourceUsage
-      PosDecode,            // Decode
-      MinFixed,             // IsMinFixed
-      MaxFixed,             // IsMaxFixed
-      NonCacheable,         // Cacheable
-      ReadWrite,            // ReadAndWrite
-      0x0000000000000000,   // AddressGranularity - GRA
-      0x0000100002780000,   // AddressMinimum - MIN
-      0x000010000278FFFF,   // AddressMaximum - MAX
-      0x0000000000000000,   // AddressTranslation - TRA
-      0x0000000000010000    // RangeLength - LEN
-    )
-    Interrupt(ResourceConsumer, Level, ActiveHigh, Exclusive) { 110 }
-  })
-}
+    Device(I2C5) {
+      Name(_HID, "APMC0D0F")
+      Name(_UID, 5)
+      Name(_STR, Unicode("Altra Max I2C Device"))
+      Method(_STA, 0, NotSerialized) {
+        return (0x0f)
+      }
+      Name(_CCA, ONE)
+      Name(_CRS, ResourceTemplate() {
+        QWordMemory (
+          ResourceProducer,     // ResourceUsage
+          PosDecode,            // Decode
+          MinFixed,             // IsMinFixed
+          MaxFixed,             // IsMaxFixed
+          NonCacheable,         // Cacheable
+          ReadWrite,            // ReadAndWrite
+          0x0000000000000000,   // AddressGranularity - GRA
+          0x00001000026C0000,   // AddressMinimum - MIN
+          0x00001000026CFFFF,   // AddressMaximum - MAX
+          0x0000000000000000,   // AddressTranslation - TRA
+          0x0000000000010000    // RangeLength - LEN
+        )
+        Interrupt(ResourceConsumer, Level, ActiveHigh, Exclusive) { 106 }
+      })
+    }
 
+    //
+    // DesignWare I2C on AHBC bus
+    Device(I2C6) {
+      Name(_HID, "APMC0D0F")
+      Name(_UID, 6)
+      Name(_STR, Unicode("Altra Max I2C Device"))
+      Method(_STA, 0, NotSerialized) {
+        return (0x0f)
+      }
+      Name(_CCA, ONE)
+      Name(_CRS, ResourceTemplate() {
+        QWordMemory (
+          ResourceProducer,     // ResourceUsage
+          PosDecode,            // Decode
+          MinFixed,             // IsMinFixed
+          MaxFixed,             // IsMaxFixed
+          NonCacheable,         // Cacheable
+          ReadWrite,            // ReadAndWrite
+          0x0000000000000000,   // AddressGranularity - GRA
+          0x0000100002750000,   // AddressMinimum - MIN
+          0x000010000275FFFF,   // AddressMaximum - MAX
+          0x0000000000000000,   // AddressTranslation - TRA
+          0x0000000000010000    // RangeLength - LEN
+        )
+        Interrupt(ResourceConsumer, Level, ActiveHigh, Exclusive) { 107 }
+      })
+    }
+
+    //
+    // DesignWare I2C on AHBC bus
+    Device(I2C9) {
+      Name(_HID, "APMC0D0F")
+      Name(_UID, 9)
+      Name(_STR, Unicode("Altra Max I2C Device"))
+      Method(_STA, 0, NotSerialized) {
+        return (0x0f)
+      }
+      Name(_CCA, ONE)
+      Name(_CRS, ResourceTemplate() {
+        QWordMemory (
+          ResourceProducer,     // ResourceUsage
+          PosDecode,            // Decode
+          MinFixed,             // IsMinFixed
+          MaxFixed,             // IsMaxFixed
+          NonCacheable,         // Cacheable
+          ReadWrite,            // ReadAndWrite
+          0x0000000000000000,   // AddressGranularity - GRA
+          0x0000100002780000,   // AddressMinimum - MIN
+          0x000010000278FFFF,   // AddressMaximum - MAX
+          0x0000000000000000,   // AddressTranslation - TRA
+          0x0000000000010000    // RangeLength - LEN
+        )
+        Interrupt(ResourceConsumer, Level, ActiveHigh, Exclusive) { 110 }
+      })
+    }
+      
 //
 // Report APEI Errors to GHES via SCI notification.
 // SCI notification requires one GED and one HED Device
