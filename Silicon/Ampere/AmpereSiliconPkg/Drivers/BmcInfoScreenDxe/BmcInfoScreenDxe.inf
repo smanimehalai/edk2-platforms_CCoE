@@ -25,6 +25,9 @@
   OutOfBandManagement/IpmiFeaturePkg/IpmiFeaturePkg.dec
   Silicon/Ampere/AmpereAltraPkg/AmpereAltraPkg.dec
   Silicon/Ampere/AmpereSiliconPkg/AmpereSiliconPkg.dec
+  EmbeddedPkg/EmbeddedPkg.dec
+ 
+  
 
 [LibraryClasses]
   BaseMemoryLib
@@ -35,6 +38,10 @@
   PrintLib
   UefiBootServicesTableLib
   UefiDriverEntryPoint
+  UefiRuntimeServicesTableLib
+  TimeBaseLib
+  TimerLib
+  BaseLib
 
 [Guids]
   gBmcInfoScreenFormSetGuid

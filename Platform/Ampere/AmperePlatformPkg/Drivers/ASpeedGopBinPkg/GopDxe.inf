@@ -15,4 +15,4 @@
   VERSION_STRING                 = 1.0
 
 [Binaries.AArch64]
-  PE32|AArch64/uefi_2500_800.efi|*
+  PE32|AArch64/uefi_arm_2600_vga.efi|*
