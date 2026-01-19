@@ -256,7 +256,7 @@ SyncRtcToIpmiSelTime (
   //
   if (RtcEpoch < MIN_VALID_EPOCH) {
     DEBUG ((DEBUG_WARN,
-      "RTC not ready, epoch=%u — skipping SEL sync\n",
+      "RTC not ready, epoch=%u skipping SEL sync\n",
       RtcEpoch));
     return EFI_NOT_READY;
   }
@@ -283,7 +283,7 @@ SyncRtcToIpmiSelTime (
   }
 
   //
-  // 5) Write RTC ? SEL
+  // 5) Write RTC SEL
   //
   SetReq.Timestamp = RtcEpoch;
 
