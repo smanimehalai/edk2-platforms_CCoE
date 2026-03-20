@@ -30,8 +30,13 @@
 
 #include "BmcInfoScreenDxe.h"
 
-#define IPMI_SET_SEL_RETRY_MAX  10
-#define MIN_VALID_EPOCH  946684800  // 2000-01-01
+#define IPMI_SET_SEL_RETRY_MAX          10
+#define MIN_VALID_EPOCH                 946684800  // 2000-01-01
+#define IPMI_SET_SEL_RETRY_DELAY_SEC    5
+#define TIME_TOLERANCE                  2
+#define POST_SYNC_RETRY_MAX             2
+
+
 #define DBG_TIME DEBUG_INFO
 #define DBG_ERR  DEBUG_ERROR
 #define DBG_WARN DEBUG_WARN
@@ -246,6 +251,166 @@ PrintIpmiSelTimeDecoded (
     Resp->Timestamp));
 }
 
+
+/**
+  Set BMC SEL time with retry and verification.
+
+  On each retry, the current RTC time is read and used to update
+  the SEL. The function verifies the update using Get SEL Time.
+
+  Retries occur if set/verify fails or timestamps do not match.
+
+  @retval EFI_SUCCESS        SEL time updated successfully.
+  @retval EFI_DEVICE_ERROR   Failed after all retries.
+  @retval EFI_NOT_READY      RTC time invalid.
+**/
+
+
+STATIC
+EFI_STATUS
+SetSelTimeWithRetry (
+  VOID  
+  )
+{
+  EFI_STATUS                   Status;
+  UINT8                        CompletionCode;
+  IPMI_SET_SEL_TIME_REQUEST    SetReq;
+  IPMI_GET_SEL_TIME_RESPONSE   VerifyResp;
+  EFI_TIME                     Time;
+  UINT32                       CurrentEpoch;
+  UINT8                        Attempt;
+  for (Attempt = 0; Attempt < IPMI_SET_SEL_RETRY_MAX; Attempt++) {
+
+    //
+    // Read RTC every retry
+    //
+    Status = gRT->GetTime (&Time, NULL);
+    if (EFI_ERROR (Status)) {
+      DEBUG ((DEBUG_ERROR, "GetTime failed: %r\n", Status));
+      return EFI_DEVICE_ERROR;
+    }
+    //
+    // Convert RTC time to epoch and validate it.
+    // Return EFI_NOT_READY if the time is invalid.
+    //
+    CurrentEpoch = (UINT32)EfiTimeToEpoch (&Time);
+
+    if (CurrentEpoch < MIN_VALID_EPOCH) {
+      DEBUG ((DEBUG_WARN, "RTC invalid during retry: %u\n", CurrentEpoch));
+      return EFI_NOT_READY;
+    }
+
+    ZeroMem (&SetReq, sizeof (SetReq));
+    SetReq.Timestamp = CurrentEpoch;
+
+    DEBUG ((DEBUG_INFO,
+      "Retry %u: Setting SEL time to %u\n",
+      Attempt + 1,
+      CurrentEpoch));
+
+    //
+    // ---- Set SEL Time ----
+    //
+    CompletionCode = 0xFF;
+    Status = IpmiSetSelTime (&SetReq, &CompletionCode);
+
+    if (EFI_ERROR (Status) ||
+        CompletionCode != IPMI_COMP_CODE_NORMAL) {
+      goto Retry;
+    }
+
+    //
+    // ---- Verify ----
+    //
+    Status = IpmiGetSelTime (&VerifyResp);
+
+    if (EFI_ERROR (Status) ||
+        VerifyResp.CompletionCode != IPMI_COMP_CODE_NORMAL) {
+      goto Retry;
+    }
+
+    if (VerifyResp.Timestamp == CurrentEpoch) {
+      DEBUG ((DEBUG_INFO,
+        "SetSelTime verified with fresh RTC on attempt %u\n",
+        Attempt + 1));
+      return EFI_SUCCESS;
+    }
+
+Retry:
+    if (Attempt < IPMI_SET_SEL_RETRY_MAX - 1) {
+      MicroSecondDelay (IPMI_SET_SEL_RETRY_DELAY_SEC * 1000000);
+    }
+  }
+
+  return EFI_DEVICE_ERROR;
+}
+
+
+/**
+  Synchronize the BMC SEL time using the system RTC time.
+
+  This function reads the current RTC time, converts it to epoch
+  format, and updates the BMC SEL timestamp using the IPMI Set SEL
+  Time command with retry and verification.
+
+  @param[out] SyncDir   Indicates synchronization direction
+                        (always SelSyncRtcToSel when successful).
+
+  @retval EFI_SUCCESS        SEL time updated successfully.
+  @retval EFI_DEVICE_ERROR   Failed to update SEL time.
+  @retval EFI_NOT_READY      RTC time is invalid.
+**/
+
+STATIC
+EFI_STATUS
+SyncRtcToIpmiSelTime (
+  OUT SEL_SYNC_DIRECTION *SyncDir
+  )
+{
+  EFI_STATUS  Status;
+  EFI_TIME    Time;
+  UINT32      RtcEpoch;
+
+  *SyncDir = SelSyncNone;
+
+  DEBUG ((DEBUG_INFO, "==== SyncRtcToIpmiSelTime ENTRY ====\n"));
+
+  //
+  // ---------------- RTC ----------------
+  //
+  Status = gRT->GetTime (&Time, NULL);
+  if (EFI_ERROR (Status)) {
+    DEBUG ((DEBUG_ERROR, "GetTime failed: %r\n", Status));
+    return EFI_DEVICE_ERROR;
+  }
+
+  RtcEpoch = (UINT32)EfiTimeToEpoch (&Time);
+  PrintRtcTime (&Time);
+
+  //
+  // Validate RTC time
+  //
+  if (RtcEpoch < MIN_VALID_EPOCH) {
+
+    DEBUG ((DEBUG_WARN,
+      "RTC epoch invalid: %u\n",
+      RtcEpoch));
+
+    return EFI_NOT_READY;
+  }
+
+  DEBUG ((DEBUG_INFO,
+    "Updating SEL time using RTC epoch: %u\n",
+    RtcEpoch));
+
+  *SyncDir = SelSyncRtcToSel;
+
+  //
+  // Update SEL time with retry + verification
+  //
+  return SetSelTimeWithRetry ();
+}
+
 /**
   Add an OEM System Event Log (SEL) entry for time synchronization.
 
@@ -326,152 +491,23 @@ AddTimeSyncSelEntry (
 }
 
 /**
-  Synchronize RTC time with IPMI SEL time.
+  Entry point for the BMC Information Screen DXE driver.
 
-  This function compares RTC time and BMC SEL time, selects the most
-  recent valid timestamp, and updates the SEL time accordingly.
-  The synchronization direction is returned to the caller.
+  This function initializes the HII package for the BMC information
+  screen, updates displayed BMC information, and performs time
+  synchronization between the system RTC and the BMC SEL clock.
 
-  Retry logic is applied when setting SEL time to ensure reliability.
+  The function logs the SEL time before and after synchronization
+  for debugging purposes. If a synchronization occurs successfully,
+  an OEM SEL event is added to record the time synchronization action.
 
-  @param[out] SyncDir   Pointer to receive the synchronization direction.
+  @param[in] ImageHandle     Handle for the loaded image.
+  @param[in] SystemTable     Pointer to the EFI System Table.
 
-  @retval EFI_SUCCESS       Time synchronization completed successfully.
-  @retval EFI_NOT_READY     Both RTC and SEL times are invalid.
-  @retval EFI_DEVICE_ERROR  Failed to get or set SEL time.
-
+  @retval EFI_SUCCESS        Driver initialized successfully.
+  @retval EFI_DEVICE_ERROR   Failed to synchronize or access BMC information.
 **/
 
-STATIC
-EFI_STATUS
-SyncRtcToIpmiSelTime (
-  OUT SEL_SYNC_DIRECTION *SyncDir
-  )
-{
-  EFI_STATUS                 Status;
-  EFI_TIME                   Time;
-  UINT32                     RtcEpoch = 0;
-  UINT32                     SelEpoch = 0;
-  UINT32                     NewEpoch;
-  IPMI_GET_SEL_TIME_RESPONSE SelResp;
-  IPMI_SET_SEL_TIME_REQUEST  SetReq;
-  UINT8                      CompletionCode;
-  BOOLEAN                    SetSelSuccess = FALSE;
-
-  *SyncDir = SelSyncNone;
-
-  DEBUG ((DBG_TIME, "==== SyncRtcToIpmiSelTime ENTRY ====\n"));
-
-  /* ---------------- RTC (read only) ---------------- */
-  Status = gRT->GetTime (&Time, NULL);
-  if (EFI_ERROR (Status)) {
-    DEBUG ((DBG_WARN, "GetTime failed: %r\n", Status));
-  } else {
-    RtcEpoch = (UINT32)EfiTimeToEpoch (&Time);
-    PrintRtcTime (&Time);
-  }
-
-  /* ---------------- SEL (before) ---------------- */
-  Status = IpmiGetSelTime (&SelResp);
-  if (EFI_ERROR (Status) ||
-      SelResp.CompletionCode != IPMI_COMP_CODE_NORMAL) {
-    DEBUG ((DBG_ERR, "IpmiGetSelTime failed: %r CC=0x%02x\n",
-            Status, SelResp.CompletionCode));
-    return EFI_DEVICE_ERROR;
-  }
-
-  DEBUG ((DBG_TIME, "SEL time BEFORE SetSelTime\n"));
-  PrintIpmiSelTimeDecoded (&SelResp);
-  SelEpoch = SelResp.Timestamp;
-
-  /* ---------------- Validate ---------------- */
-  if (RtcEpoch < MIN_VALID_EPOCH &&
-      SelEpoch < MIN_VALID_EPOCH) {
-
-    DEBUG ((DBG_WARN,
-      "Both RTC (%u) and SEL (%u) invalid (< MIN_VALID_EPOCH)\n",
-      RtcEpoch, SelEpoch));
-
-    return EFI_NOT_READY;
-  }
-
-  /* ---------------- Choose latest ---------------- */
-  if (RtcEpoch >= SelEpoch && RtcEpoch >= MIN_VALID_EPOCH) {
-    NewEpoch = RtcEpoch;
-    *SyncDir = SelSyncRtcToSel;
-
-    DEBUG ((DBG_TIME,
-      "RTC is newer setting SEL to RTC epoch=%u\n",
-      NewEpoch));
-  } else {
-    NewEpoch = SelEpoch;
-    *SyncDir = SelSyncSelToRtc;
-
-    DEBUG ((DBG_TIME,
-      "SEL is newer re-setting SEL to epoch=%u\n",
-      NewEpoch));
-  }
-
-  /* ---------------- Set SEL Time ---------------- */
-  DEBUG ((DBG_TIME,
-    "Calling IpmiSetSelTime(epoch=%u)\n",
-    NewEpoch));
-
-  ZeroMem (&SetReq, sizeof (SetReq));
-  SetReq.Timestamp = NewEpoch;
-
-  for (UINTN Retry = 0; Retry < IPMI_SET_SEL_RETRY_MAX; Retry++) {
-    Status = IpmiSetSelTime (&SetReq, &CompletionCode);
-
-    DEBUG ((DBG_TIME,
-      "SetSelTime retry=%u Status=%r CC=0x%02x\n",
-      Retry, Status, CompletionCode));
-
-    if (!EFI_ERROR (Status) &&
-        CompletionCode == IPMI_COMP_CODE_NORMAL) {
-      SetSelSuccess = TRUE;
-      DEBUG ((DBG_TIME, "SetSelTime SUCCESS\n"));
-      break;
-    }
-
-    MicroSecondDelay (1000000);
-  }
-
-  if (!SetSelSuccess) {
-    DEBUG ((DBG_ERR,
-      "SetSelTime FAILED after %u retries\n",
-      IPMI_SET_SEL_RETRY_MAX));
-    return EFI_DEVICE_ERROR;
-  }
-
-  /* ---------------- SEL (after) ---------------- */
-  Status = IpmiGetSelTime (&SelResp);
-  if (!EFI_ERROR (Status)) {
-    DEBUG ((DBG_TIME, "SEL time AFTER SetSelTime\n"));
-    PrintIpmiSelTimeDecoded (&SelResp);
-  } else {
-    DEBUG ((DBG_WARN,
-      "IpmiGetSelTime (after) failed: %r\n",
-      Status));
-  }
-
-  DEBUG ((DBG_TIME,
-    "==== SyncRtcToIpmiSelTime EXIT dir=%u ====\n",
-    *SyncDir));
-
-  return EFI_SUCCESS;
-}
-
-/**
-  The user Entry Point for the BMC Screen driver.
-
-  @param[in] ImageHandle    The firmware allocated handle for the EFI image.
-  @param[in] SystemTable    A pointer to the EFI System Table.
-
-  @retval EFI_SUCCESS       The entry point is executed successfully.
-  @retval Other             Some error occurs when executing this entry point.
-
-**/
 EFI_STATUS
 EFIAPI
 BmcInfoScreenEntry (
@@ -481,14 +517,15 @@ BmcInfoScreenEntry (
 {
   EFI_STATUS Status;
   EFI_HANDLE DriverHandle;
-
-  Status = EFI_SUCCESS;
-  DriverHandle = NULL;
+  EFI_TIME   Time;
+  UINT32     RtcEpoch;
+  UINT8      Retry;
 
  
   IPMI_GET_SEL_TIME_RESPONSE  SelResp;
   SEL_SYNC_DIRECTION         SyncDir;
-  
+  Status = EFI_SUCCESS;
+  DriverHandle = NULL;
 
   //
   // Publish our HII data
@@ -516,6 +553,9 @@ BmcInfoScreenEntry (
     PrintIpmiSelTimeDecoded (&SelResp);
   }
 
+  //
+  // ===== SYNC =====
+  //
   Status = SyncRtcToIpmiSelTime (&SyncDir);
   //
   // ===== AFTER SYNC: Read SEL time =====
@@ -525,13 +565,84 @@ BmcInfoScreenEntry (
     PrintIpmiSelTimeDecoded (&SelResp);
   }
 
-  if (!EFI_ERROR (Status) &&
-      SyncDir != SelSyncNone &&
-      !mTimeSyncSelLogged) {
+  //
+  // ===== POST-SYNC VALIDATION (ONLY IF SYNC SUCCEEDED) =====
+  //
+  if (!EFI_ERROR (Status) && SyncDir != SelSyncNone) {
 
-    AddTimeSyncSelEntry (SelResp.Timestamp, SyncDir);
-    mTimeSyncSelLogged = TRUE;
+
+  for (Retry = 0; Retry < POST_SYNC_RETRY_MAX; Retry++) {
+
+  //
+  // Read RTC
+  //
+  Status = gRT->GetTime (&Time, NULL);
+  if (EFI_ERROR (Status)) {
+    break;
   }
 
-  return Status;
+  RtcEpoch = (UINT32)EfiTimeToEpoch (&Time);
+
+  //
+  // Read SEL time
+  //
+  Status = IpmiGetSelTime (&SelResp);
+  if (EFI_ERROR (Status) ||
+      SelResp.CompletionCode != IPMI_COMP_CODE_NORMAL) {
+    break;
+  }
+
+  //
+  // Compare with tolerance
+  //
+  if ((SelResp.Timestamp >= (RtcEpoch - TIME_TOLERANCE)) &&
+      (SelResp.Timestamp <= (RtcEpoch + TIME_TOLERANCE))) {
+
+    DEBUG ((DEBUG_INFO,
+      "Post-sync SEL verified (within tolerance). SEL=%u RTC=%u\n",
+      SelResp.Timestamp,
+      RtcEpoch));
+
+    break; // SUCCESS
+  }
+
+  DEBUG ((DEBUG_WARN,
+    "Post-sync mismatch (Retry %u/%u): SEL=%u RTC=%u\n",
+    Retry + 1,
+    POST_SYNC_RETRY_MAX,
+    SelResp.Timestamp,
+    RtcEpoch));
+
+  //
+  // Retry setting SEL time
+  //
+  Status = SetSelTimeWithRetry ();
+  if (EFI_ERROR (Status)) {
+    break;
+  }
+
+  //
+  // Delay before next retry
+  //
+  if (Retry < POST_SYNC_RETRY_MAX - 1) {
+    MicroSecondDelay (IPMI_SET_SEL_RETRY_DELAY_SEC * 1000000);
+  }
+}
+}
+
+//
+// ===== LOG SEL EVENT (ONLY ONCE) =====
+//
+if (!EFI_ERROR (Status) &&
+SyncDir != SelSyncNone &&
+!mTimeSyncSelLogged) {
+
+if (!EFI_ERROR (IpmiGetSelTime (&SelResp)) &&
+    SelResp.CompletionCode == IPMI_COMP_CODE_NORMAL) {
+
+  AddTimeSyncSelEntry (SelResp.Timestamp, SyncDir);
+  mTimeSyncSelLogged = TRUE;
+}
+}
+return Status;
 }

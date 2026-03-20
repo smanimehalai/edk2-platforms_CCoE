@@ -33,10 +33,15 @@
 #include <Protocol/PciIo.h>
 #include <Protocol/PciRootBridgeIo.h>
 #include <Protocol/PlatformBootManager.h>
+#include "../../../../../../edk2_CCoE/MdeModulePkg/Library/BootMaintenanceManagerUiLib/FormGuid.h"
+#include <Library/SerialPortLib.h>
 
 #include "PlatformBm.h"
 
 #define DP_NODE_LEN(Type) { (UINT8)sizeof (Type), (UINT8)(sizeof (Type) >> 8) }
+
+#define COM0_BASE 0x100002600000
+#define COM1_BASE 0x100002630000
 
 #pragma pack (1)
 typedef struct {
@@ -562,6 +567,42 @@ PlatformRegisterOptionsAndKeys (
   ASSERT (Status == EFI_SUCCESS || Status == EFI_ALREADY_STARTED);
 }
 
+VOID
+UpdateSerialPortBase(
+VOID
+)
+{
+  EFI_STATUS Status;
+  BMM_FAKE_NV_DATA Setup;
+  UINTN Size;
+  Size = sizeof(Setup);
+  EFI_GUID gBootMaintFormSetGuid = BOOT_MAINT_FORMSET_GUID;
+  Status = gRT->GetVariable(
+	  L"BmmData",
+	  &gBootMaintFormSetGuid,
+	  NULL,
+	  &Size,
+	  &Setup
+	);
+
+  DEBUG ((DEBUG_INFO, "UpdateSerialPortBase GetVariable Status = %r\n", Status));
+  DEBUG ((DEBUG_INFO, "UpdateSerialPortBase ConsoleRedirectionPort default = %d\n", Setup.ConsoleRedirectionPort));
+
+  if (!EFI_ERROR(Status))
+  {
+    if (Setup.ConsoleRedirectionPort == 1)
+    {
+      PcdSet64S(PcdSelectedSerialBase, COM1_BASE);
+    }
+    else
+    {
+      PcdSet64S( PcdSelectedSerialBase,COM0_BASE);
+    }
+    SerialPortInitialize();
+  }
+  DEBUG ((DEBUG_INFO, "UpdateSerialPortBase ConsoleRedirectionPort after set = %d\n", Setup.ConsoleRedirectionPort));
+  DEBUG ((DEBUG_INFO, "UpdateSerialPortBase PcdSelectedSerialBase after set = 0x%lx\n", PcdGet64(PcdSelectedSerialBase)));
+}
 
 //
 // BDS Platform Functions
@@ -583,6 +624,8 @@ PlatformBootManagerBeforeConsole (
   VOID
   )
 {
+  DEBUG ((DEBUG_INFO, "Entering into PlatformBootManagerBeforeConsole"));
+  UpdateSerialPortBase();
   //
   // Signal EndOfDxe PI Event
   //
