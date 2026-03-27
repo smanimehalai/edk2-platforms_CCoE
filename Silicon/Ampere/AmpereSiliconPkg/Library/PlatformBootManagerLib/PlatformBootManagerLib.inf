@@ -51,7 +51,6 @@
   UefiBootServicesTableLib
   UefiLib
   UefiRuntimeServicesTableLib
-  SerialPortLib
 
 [FeaturePcd]
   gEfiMdePkgTokenSpaceGuid.PcdUgaConsumeSupport
@@ -67,7 +66,6 @@
 [Pcd]
   gEfiMdePkgTokenSpaceGuid.PcdPlatformBootTimeOut
   gEfiMdeModulePkgTokenSpaceGuid.PcdFirmwareVersionString
-  gEfiMdeModulePkgTokenSpaceGuid.PcdSelectedSerialBase
 
 [Guids]
   gAmpereAfterConsoleEventGuid
