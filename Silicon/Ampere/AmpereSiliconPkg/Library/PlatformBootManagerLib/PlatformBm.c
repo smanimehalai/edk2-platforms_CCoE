@@ -33,6 +33,8 @@
 #include <Protocol/PciIo.h>
 #include <Protocol/PciRootBridgeIo.h>
 #include <Protocol/PlatformBootManager.h>
+#include "../../../../../../edk2_CCoE/MdeModulePkg/Library/BootMaintenanceManagerUiLib/FormGuid.h"
+#include <Library/SerialPortLib.h>
 
 #include "PlatformBm.h"
 
@@ -562,6 +564,55 @@ PlatformRegisterOptionsAndKeys (
   ASSERT (Status == EFI_SUCCESS || Status == EFI_ALREADY_STARTED);
 }
 
+VOID
+UpdateSerialPortBase (
+  VOID
+)
+{
+  EFI_STATUS         Status;
+  BMM_FAKE_NV_DATA   Setup;
+  UINTN              Size;
+  UINT8              Port = 0;   // Default COM0
+  EFI_GUID           BootMaintGuid = BOOT_MAINT_FORMSET_GUID;
+
+  Size = sizeof(Setup);
+
+  Status = gRT->GetVariable(
+                  L"BmmData",
+                  &BootMaintGuid,
+                  NULL,
+                  &Size,
+                  &Setup
+                  );
+
+  DEBUG ((DEBUG_INFO, "DXE: GetVariable Status = %r\n", Status));
+
+  if (!EFI_ERROR(Status)) {
+
+    DEBUG ((DEBUG_INFO, "DXE: ConsoleRedirectionPort = %d\n",
+            Setup.ConsoleRedirectionPort));
+
+    //
+    // Extract selection
+    //
+    if (Setup.ConsoleRedirectionPort == 1) {
+      Port = 1;
+    }
+  }
+
+  //
+  // Set selection PCD (NOT base anymore)
+  //
+  PcdSet8S(PcdSelectedSerialBase, Port);
+
+  DEBUG ((DEBUG_INFO, "DXE: PcdSelectedSerialBase (Port) = %d\n",
+          PcdGet8(PcdSelectedSerialBase)));
+
+  //
+  // Re-init serial with new selection
+  //
+  SerialPortInitialize();
+}
 
 //
 // BDS Platform Functions
@@ -583,6 +634,9 @@ PlatformBootManagerBeforeConsole (
   VOID
   )
 {
+  DEBUG ((DEBUG_INFO, "Entered into PlatformBootManagerBeforeConsole"));
+  UpdateSerialPortBase();
+  
   //
   // Signal EndOfDxe PI Event
   //
